@@ -16,16 +16,11 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 const HakAtasKekayaanIntelektual = () => {
   const chartData = [
-    { title: "Merk", desktop: 2 },
-    { title: "Paten", desktop: 8 },
-    { title: "Hak Cipta", desktop: 4 },
-    { title: "Geografis", desktop: 3 },
-    { title: "Desain Industri", desktop: 7 },
-    { ratio: "2" },
-    { ratio: "4" },
-    { ratio: "6" },
-    { ratio: "8" },
-    { ratio: "8" },
+    { title: "Merk", value: 12 },
+    { title: "Paten", value: 8 },
+    { title: "Hak Cipta", value: 4 },
+    { title: "Geografis", value: 13 },
+    { title: "Desain Industri", value: 7 },
   ];
   const chartConfig = {
     desktop: {
@@ -40,7 +35,7 @@ const HakAtasKekayaanIntelektual = () => {
           <CardTitle>Grafik Hak Atas Kekayaan Intelektual</CardTitle>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={chartConfig} className="h-[372px] w-full">
+          <ChartContainer config={chartConfig} className="h-[372px] max-w-full">
             <BarChart
               accessibilityLayer
               data={chartData}
@@ -50,23 +45,25 @@ const HakAtasKekayaanIntelektual = () => {
               <CartesianGrid vertical={false} />
               <XAxis
                 dataKey="title"
-                tickLine={false}
+                tickLine={true}
                 tickMargin={10}
                 axisLine={false}
               />
               <YAxis
-                dataKey="ratio"
                 tickLine={false}
                 tickMargin={10}
                 axisLine={false}
+                allowDecimals={false}
+                domain={[0, 20]}
               />
               <ChartTooltip
                 cursor={false}
                 content={<ChartTooltipContent hideLabel />}
               />
               <Bar
-                dataKey="desktop"
+                dataKey="value"
                 fill="var(--color-desktop)"
+                barSize={25}
                 radius={[6, 6, 0, 0]}
               />
             </BarChart>

@@ -9,6 +9,7 @@ import {
   DialogClose,
   DialogContent,
   DialogFooter,
+  DialogFooterHapus,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -21,6 +22,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableCellAction,
   TableHead,
   TableHeader,
   TableRow,
@@ -29,16 +31,22 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@radix-ui/react-dropdown-menu";
-import { MoreHorizontalIcon, Plus } from "lucide-react";
+import { MoreHorizontalIcon, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import Swal from "sweetalert2";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import Image from "next/image";
 
 type DataBrandValuationProps = {
   namaBrand: string;
   brandValuation: string;
   pemegangHAKI: string;
 };
+
+interface Status {
+  value: string;
+  label: string;
+}
 
 const BrandValuationPage = () => {
   const [showEditBrandValuation, setShowEditBrandValuation] = useState(false);
@@ -47,14 +55,6 @@ const BrandValuationPage = () => {
   const [value, setValue] = useState("");
   const router = useRouter();
 
-  const handleHapusBrandValuation = () => {
-    Swal.fire({
-      title: "Apakah Anda yakin ingin menghapus brand valuation ini?",
-      text: "Tindakan ini tidak dapat dibatalkan!",
-      icon: "warning",
-    });
-  };
-
   const handleCancel = () => {
     router.push("/brand-valuation");
   };
@@ -62,6 +62,23 @@ const BrandValuationPage = () => {
   const handleSimpan = () => {
     router.push("/brand-valuation");
   };
+
+  const handleCancelHapusBrandValuation = () => {
+    router.push("/brand-valuation");
+  };
+
+  const handleSimpanHapusBrandValuation = () => {
+    router.push("/brand-valuation");
+  };
+
+  const statusUpdatePembaruan: Status[] = [
+    {
+      value: "setujui",
+      label: "Setujui",
+    },
+    { value: "ditunda", label: "Ditunda" },
+    { value: "ditolak", label: "Ditolak" },
+  ];
 
   const DataTableMerk: DataBrandValuationProps[] = [
     {
@@ -91,13 +108,13 @@ const BrandValuationPage = () => {
           </Buttons>
         </div>
       </div>
-      <Table className="bg-white m-5 rounded-xl">
+      <Table className="bg-white m-5 rounded-xl w-full">
         <TableHeader>
           <TableRow>
             <TableHead>Nama Brand</TableHead>
             <TableHead>Brand Valuation</TableHead>
             <TableHead>Pemegang HAKI</TableHead>
-            <TableHead>Action</TableHead>
+            <TableHead className="w-[100px] text-center">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -116,7 +133,7 @@ const BrandValuationPage = () => {
                   <TableCell>{brandValuation}</TableCell>
                   <TableCell>{pemegangHAKI}</TableCell>
                   <TableCell>{pemegangHAKI}</TableCell>
-                  <TableCell>
+                  <TableCellAction>
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -143,7 +160,7 @@ const BrandValuationPage = () => {
                           >
                             <div
                               className="text-sm hover:font-semibold"
-                              onClick={() => handleHapusBrandValuation()}
+                              onClick={() => setShowHapusBrandValuation(true)}
                             >
                               Hapus Brand Valuation
                             </div>
@@ -157,12 +174,12 @@ const BrandValuationPage = () => {
                       open={showEditBrandValuation}
                       onOpenChange={setShowEditBrandValuation}
                     >
-                      <DialogContent className="sm:max-w-[788px] p-0">
+                      <DialogContent className="sm:max-w-[788px] h-[379px] p-0">
                         <DialogHeader>
-                          <DialogTitle className="bg-[#064263] text-white p-4 rounded-t-lg">
+                          <DialogTitle className="bg-[#064263] text-white rounded-t-lg">
                             Edit Brand Valuation
                           </DialogTitle>
-                          <div className="grid grid-cols-2 grid-rows-4 gap-4 p-4">
+                          <div className="grid grid-cols-2 grid-rows-2 gap-4 p-4">
                             <div className="col-span-2">
                               <Labels
                                 text="Nama Brand"
@@ -210,18 +227,18 @@ const BrandValuationPage = () => {
                           <DialogClose asChild>
                             <div className="space-x-2">
                               <Buttons
-                                variant="default"
+                                variant="defaultSecond"
                                 size="sm"
                                 onClick={() => handleCancel()}
-                                className="w-20 text-white p-2"
+                                className="w-20 p-2"
                               >
                                 Batal
                               </Buttons>
                               <Buttons
-                                variant="destructive"
+                                variant="default"
                                 size="sm"
                                 onClick={() => handleSimpan()}
-                                className="w-40 text-white p-2"
+                                className="w-40 p-2"
                               >
                                 Simpan Perubahan
                               </Buttons>
@@ -230,7 +247,68 @@ const BrandValuationPage = () => {
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
-                  </TableCell>
+
+                    <Dialog
+                      open={showHapusBrandValuation}
+                      onOpenChange={setShowHapusBrandValuation}
+                    >
+                      <DialogContent className="sm:max-w-[372px] h-[331px] p-0 rounded-2xl">
+                        <VisuallyHidden>
+                          <DialogTitle>
+                            Konfirmasi Hapus Brand Valuation
+                          </DialogTitle>
+                        </VisuallyHidden>
+                        <div className="px-8 pt-8">
+                          <div className="flex justify-center items-center mt-6">
+                            <Image
+                              src="/icon/Group 303.svg"
+                              alt="Icon Delete"
+                              width={70}
+                              height={70}
+                            />
+                          </div>
+
+                          <div className="m-4 text-center space-y-2">
+                            <p className="font-semibold text-lg text-black">
+                              Hapus Brand Valuation
+                            </p>
+                            <p className="tex-xs text-[#888888]">
+                              Apakah Kamu yakin ingin menghapus Brand Valuation
+                              ini?
+                            </p>
+                          </div>
+                        </div>
+
+                        <DialogFooterHapus className="p-4">
+                          <DialogClose asChild>
+                            <div className="space-x-2">
+                              <Buttons
+                                variant="defaultSecond"
+                                size="sm"
+                                onClick={() =>
+                                  handleCancelHapusBrandValuation()
+                                }
+                                className="w-20 p-2 bg-[#DC35451A] text-[#DC3545] px-4 py-2 mr-3 rounded-md cursor-pointer"
+                              >
+                                Batal
+                              </Buttons>
+                              <Buttons
+                                variant="default"
+                                size="sm"
+                                onClick={() =>
+                                  handleSimpanHapusBrandValuation()
+                                }
+                                className="w-50 p-2 bg-[#DC3545] text-white px-4 py-2 rounded-md cursor-pointer "
+                              >
+                                <Trash2 />
+                                Hapus Brand Valuation
+                              </Buttons>
+                            </div>
+                          </DialogClose>
+                        </DialogFooterHapus>
+                      </DialogContent>
+                    </Dialog>
+                  </TableCellAction>
                 </TableRow>
               );
             })
@@ -271,23 +349,6 @@ const BrandValuationPage = () => {
                 />
               </div>
 
-              {/* <div>
-                <Labels
-                  text="Status"
-                  htmlFor="status"
-                  className="block text-sm font-medium mb-1"
-                />
-                <Select onValueChange={(value) => setValue(value)}>
-                  <SelectTrigger className="w-full border rounded px-2 py-1">
-                    <SelectValue placeholder="Pilih status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="setujui">Setujui</SelectItem>
-                    <SelectItem value="ditunda">Ditunda</SelectItem>
-                    <SelectItem value="ditolak">Ditolak</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div> */}
               <div>
                 <Labels
                   text="Nama Pemegang HAKI"
