@@ -4,12 +4,13 @@ import Buttons from "@/components/atoms/buttons";
 import Inputs from "@/components/atoms/inputs";
 import Labels from "@/components/atoms/labels";
 import { Button } from "@/components/ui/button";
-import Swal from "sweetalert2";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import {
   Dialog,
   DialogClose,
   DialogContent,
   DialogFooter,
+  DialogFooterHapus,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -37,10 +38,11 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@radix-ui/react-dropdown-menu";
-import { MoreHorizontalIcon, Plus } from "lucide-react";
+import { MoreHorizontalIcon, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Image from "next/image";
 
 type DataIndikasiGeografisProps = {
   geografis: number;
@@ -52,6 +54,11 @@ type DataIndikasiGeografisProps = {
   pemegangHAKI: string;
 };
 
+interface Status {
+  value: string;
+  label: string;
+}
+
 const IndikasiGeografisPage = () => {
   const [showEditIndikasiGeografis, setShowEditIndikasiGeografis] =
     useState(false);
@@ -62,14 +69,6 @@ const IndikasiGeografisPage = () => {
   const [showTambahData, setShowTambahData] = useState(false);
   const router = useRouter();
 
-  const handleHapusIndikasiGeografis = () => {
-    Swal.fire({
-      title: "Apakah Anda yakin ingin menghapus indikasi geografis ini?",
-      text: "Tindakan ini tidak dapat dibatalkan!",
-      icon: "warning",
-    });
-  };
-
   const handleCancel = () => {
     router.push("/indikasi-geografis");
   };
@@ -77,6 +76,23 @@ const IndikasiGeografisPage = () => {
   const handleSimpan = () => {
     router.push("/indikasi-geografis");
   };
+
+  const handleCancelHapusIndikasiGeografis = () => {
+    router.push("/indikasi-geografis");
+  };
+
+  const handleSimpanHapusIndikasiGeografis = () => {
+    router.push("/indikasi-geografis");
+  };
+
+  const statusUpdatePembaruan: Status[] = [
+    {
+      value: "setujui",
+      label: "Setujui",
+    },
+    { value: "ditunda", label: "Ditunda" },
+    { value: "ditolak", label: "Ditolak" },
+  ];
 
   const DataTableMerk: DataIndikasiGeografisProps[] = [
     {
@@ -202,7 +218,9 @@ const IndikasiGeografisPage = () => {
                           >
                             <div
                               className="text-sm hover:font-semibold"
-                              onClick={() => handleHapusIndikasiGeografis()}
+                              onClick={() =>
+                                setShowHapusIndikasiGeografis(true)
+                              }
                             >
                               Hapus Indikasi Geografis
                             </div>
@@ -216,12 +234,12 @@ const IndikasiGeografisPage = () => {
                       open={showEditIndikasiGeografis}
                       onOpenChange={setShowEditIndikasiGeografis}
                     >
-                      <DialogContent className="sm:max-w-[788px] p-0">
+                      <DialogContent className="sm:max-w-[788px] h-[476px] p-0">
                         <DialogHeader>
-                          <DialogTitle className="bg-[#064263] text-white p-4 rounded-t-lg">
+                          <DialogTitle className="bg-[#064263] text-white rounded-t-lg">
                             Edit Indikasi Geografis
                           </DialogTitle>
-                          <div className="grid grid-cols-2 grid-rows-4 gap-4 p-4">
+                          <div className="grid grid-cols-2 grid-rows-3 gap-4 p-4">
                             <div>
                               <Labels
                                 text="Geografis"
@@ -235,31 +253,6 @@ const IndikasiGeografisPage = () => {
                                 onChange={(e) => setValue(e.target.value)}
                               />
                             </div>
-                            {/* <div>
-                              <Labels
-                                text="No Permohonan"
-                                htmlFor="no-permohonan"
-                                className="block text-sm font-medium mb-1"
-                              />
-                              <Select
-                                onValueChange={(value) => setValue(value)}
-                              >
-                                <SelectTrigger className="w-full border rounded px-2 py-1">
-                                  <SelectValue placeholder="Pilih status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="setujui">
-                                    Setujui
-                                  </SelectItem>
-                                  <SelectItem value="ditunda">
-                                    Ditunda
-                                  </SelectItem>
-                                  <SelectItem value="ditolak">
-                                    Ditolak
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div> */}
 
                             <div>
                               <Labels
@@ -274,19 +267,6 @@ const IndikasiGeografisPage = () => {
                                 onChange={(e) => setValue(e.target.value)}
                               />
                             </div>
-                            {/* <div>
-                              <Labels
-                                text="No Pendaftaran"
-                                htmlFor="no-pendaftaran"
-                                className="block text-sm font-medium mb-1"
-                              />
-                              <Inputs
-                                type="text"
-                                placeholder="IDM000550171"
-                                className="w-full border rounded px-2 py-1"
-                                onChange={(e) => setValue(e.target.value)}
-                              />
-                            </div> */}
                             <div>
                               <Labels
                                 text="Tanggal Berakhir Perlindungan"
@@ -332,10 +312,10 @@ const IndikasiGeografisPage = () => {
                           <DialogClose asChild>
                             <div className="space-x-2">
                               <Buttons
-                                variant="default"
+                                variant="defaultSecond"
                                 size="sm"
                                 onClick={() => handleCancel()}
-                                className="w-20 text-white p-2"
+                                className="w-20 p-2"
                               >
                                 Batal
                               </Buttons>
@@ -343,7 +323,7 @@ const IndikasiGeografisPage = () => {
                                 variant="default"
                                 size="sm"
                                 onClick={() => handleSimpan()}
-                                className="w-40 text-white p-2"
+                                className="w-40 p-2"
                               >
                                 Simpan Perubahan
                               </Buttons>
@@ -360,7 +340,7 @@ const IndikasiGeografisPage = () => {
                     >
                       <DialogContent className="sm:max-w-[788px] p-0">
                         <DialogHeader>
-                          <DialogTitle className="bg-[#064263] text-white p-4 rounded-t-lg">
+                          <DialogTitle className="bg-[#064263] text-white rounded-t-lg">
                             Update Pembaruan
                           </DialogTitle>
                           <div className="m-4">
@@ -369,14 +349,22 @@ const IndikasiGeografisPage = () => {
                               htmlFor="status"
                               className="block text-sm font-medium mb-1"
                             />
-                            <Select onValueChange={(value) => setValue(value)}>
+                            <Select
+                              onValueChange={(val) => setValue(val)}
+                              value={value}
+                            >
                               <SelectTrigger className="w-full border rounded px-2 py-1">
                                 <SelectValue placeholder="Pilih status" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="setujui">Setujui</SelectItem>
-                                <SelectItem value="ditunda">Ditunda</SelectItem>
-                                <SelectItem value="ditolak">Ditolak</SelectItem>
+                                {statusUpdatePembaruan.map((update) => (
+                                  <SelectItem
+                                    key={update.value}
+                                    value={update.value}
+                                  >
+                                    {update.label}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>
@@ -385,24 +373,85 @@ const IndikasiGeografisPage = () => {
                           <DialogClose asChild>
                             <div className="space-x-2">
                               <Buttons
-                                variant="default"
+                                variant="defaultSecond"
                                 size="sm"
                                 onClick={() => handleCancel()}
-                                className="w-20 text-white p-2"
+                                className="w-20 p-2"
                               >
                                 Batal
                               </Buttons>
                               <Buttons
-                                variant="destructive"
+                                variant="default"
                                 size="sm"
                                 onClick={() => handleSimpan()}
-                                className="w-40 text-white p-2"
+                                className="w-40 p-2"
                               >
                                 Simpan Perubahan
                               </Buttons>
                             </div>
                           </DialogClose>
                         </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+
+                    <Dialog
+                      open={showHapusIndikasiGeografis}
+                      onOpenChange={setShowHapusIndikasiGeografis}
+                    >
+                      <DialogContent className="sm:max-w-[372px] h-[331px] p-0 rounded-2xl">
+                        <VisuallyHidden>
+                          <DialogTitle>
+                            Konfirmasi Hapus Indikasi Geografis
+                          </DialogTitle>
+                        </VisuallyHidden>
+                        <div className="px-8 pt-8">
+                          <div className="flex justify-center items-center mt-6">
+                            <Image
+                              src="/icon/Group 303.svg"
+                              alt="Icon Delete"
+                              width={70}
+                              height={70}
+                            />
+                          </div>
+
+                          <div className="m-4 text-center space-y-2">
+                            <p className="font-semibold text-lg text-black">
+                              Hapus Indikasi Geografis
+                            </p>
+                            <p className="tex-xs text-[#888888]">
+                              Apakah Kamu yakin ingin menghapus indikasi
+                              geografis ini?
+                            </p>
+                          </div>
+                        </div>
+
+                        <DialogFooterHapus className="p-4">
+                          <DialogClose asChild>
+                            <div className="space-x-2">
+                              <Buttons
+                                variant="defaultSecond"
+                                size="sm"
+                                onClick={() =>
+                                  handleCancelHapusIndikasiGeografis()
+                                }
+                                className="w-20 p-2 bg-[#DC35451A] text-[#DC3545] px-4 py-2 mr-3 rounded-md cursor-pointer"
+                              >
+                                Batal
+                              </Buttons>
+                              <Buttons
+                                variant="default"
+                                size="sm"
+                                onClick={() =>
+                                  handleSimpanHapusIndikasiGeografis()
+                                }
+                                className="w-40 p-2 bg-[#DC3545] text-white px-4 py-2 rounded-md cursor-pointer "
+                              >
+                                <Trash2 />
+                                Hapus Data
+                              </Buttons>
+                            </div>
+                          </DialogClose>
+                        </DialogFooterHapus>
                       </DialogContent>
                     </Dialog>
                   </TableCell>

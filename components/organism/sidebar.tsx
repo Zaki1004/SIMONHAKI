@@ -14,12 +14,10 @@ const Sidebar = () => {
             <div className="text-md">Menu</div>
             <div
               className={`text-md ${
-                pathname === "/dashboard"
-                  ? "bg-white text-[#064263]"
-                  : "bg-[#00425A]"
+                pathname === "/" ? "bg-white text-[#064263]" : "bg-[#00425A]"
               } rounded-md p-2`}
             >
-              <Link href="/dashboard">Dashboard</Link>
+              <Link href="/">Dashboard</Link>
             </div>
             <div
               className={`text-md ${

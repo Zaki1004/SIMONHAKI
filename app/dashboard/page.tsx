@@ -1,8 +1,8 @@
-import MenuDashboard from "@/components/organism/menu-dashboard";
-import React from "react";
+// import MenuDashboard from "@/components/organism/menu-dashboard";
+// import React from "react";
 
-const DashboardPage = () => {
-  return <MenuDashboard />;
-};
+// const DashboardPage = () => {
+//   return <MenuDashboard />;
+// };
 
-export default DashboardPage;
+// export default DashboardPage;

@@ -5,11 +5,13 @@ import Inputs from "@/components/atoms/inputs";
 import Labels from "@/components/atoms/labels";
 import { Button } from "@/components/ui/button";
 import Swal from "sweetalert2";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import {
   Dialog,
   DialogClose,
   DialogContent,
   DialogFooter,
+  DialogFooterHapus,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -37,10 +39,11 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@radix-ui/react-dropdown-menu";
-import { MoreHorizontalIcon, Plus } from "lucide-react";
+import { MoreHorizontalIcon, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Image from "next/image";
 
 type DataDesainIndustriProps = {
   judulDesainIndustri: string;
@@ -52,6 +55,11 @@ type DataDesainIndustriProps = {
   pemegangHAKI: string;
 };
 
+interface Status {
+  value: string;
+  label: string;
+}
+
 const DesainIndustriPage = () => {
   const [showEditDesainIndustri, setShowEditDesainIndustri] = useState(false);
   const [showUpdatePembaruan, setShowUpdatePembaruan] = useState(false);
@@ -60,14 +68,6 @@ const DesainIndustriPage = () => {
   const [value, setValue] = useState("");
   const router = useRouter();
 
-  const handleHapusDesainIndustri = () => {
-    Swal.fire({
-      title: "Apakah Anda yakin ingin menghapus desain industri ini?",
-      text: "Tindakan ini tidak dapat dibatalkan!",
-      icon: "warning",
-    });
-  };
-
   const handleCancel = () => {
     router.push("/desain-industri");
   };
@@ -75,6 +75,23 @@ const DesainIndustriPage = () => {
   const handleSimpan = () => {
     router.push("/desain-industri");
   };
+
+  const handleCancelHapusDesainIndustri = () => {
+    router.push("/desain-industri");
+  };
+
+  const handleSimpanHapusDesainIndustri = () => {
+    router.push("/desain-industri");
+  };
+
+  const statusUpdatePembaruan: Status[] = [
+    {
+      value: "setujui",
+      label: "Setujui",
+    },
+    { value: "ditunda", label: "Ditunda" },
+    { value: "ditolak", label: "Ditolak" },
+  ];
 
   const DataTableMerk: DataDesainIndustriProps[] = [
     {
@@ -202,7 +219,7 @@ const DesainIndustriPage = () => {
                           >
                             <div
                               className="text-sm hover:font-semibold"
-                              onClick={() => handleHapusDesainIndustri()}
+                              onClick={() => setShowHapusDesainIndustri(true)}
                             >
                               Hapus Desain Industri
                             </div>
@@ -216,12 +233,12 @@ const DesainIndustriPage = () => {
                       open={showEditDesainIndustri}
                       onOpenChange={setShowEditDesainIndustri}
                     >
-                      <DialogContent className="sm:max-w-[788px] p-0">
+                      <DialogContent className="sm:max-w-[788px] h-[476px] p-0">
                         <DialogHeader>
-                          <DialogTitle className="bg-[#064263] text-white p-4 rounded-t-lg">
+                          <DialogTitle className="bg-[#064263] text-white rounded-t-lg">
                             Edit Desain Industri
                           </DialogTitle>
-                          <div className="grid grid-cols-2 grid-rows-4 gap-4 p-4">
+                          <div className="grid grid-cols-2 grid-rows-3 gap-4 px-4 pt-4">
                             <div className="col-span-2">
                               <Labels
                                 text="Judul Desain Industri"
@@ -294,18 +311,18 @@ const DesainIndustriPage = () => {
                           <DialogClose asChild>
                             <div className="space-x-2">
                               <Buttons
-                                variant="default"
+                                variant="defaultSecond"
                                 size="sm"
                                 onClick={() => handleCancel()}
-                                className="w-20 text-white p-2"
+                                className="w-20 p-2"
                               >
                                 Batal
                               </Buttons>
                               <Buttons
-                                variant="destructive"
+                                variant="default"
                                 size="sm"
                                 onClick={() => handleSimpan()}
-                                className="w-40 text-white p-2"
+                                className="w-40 p-2"
                               >
                                 Simpan Perubahan
                               </Buttons>
@@ -322,7 +339,7 @@ const DesainIndustriPage = () => {
                     >
                       <DialogContent className="sm:max-w-[788px] p-0">
                         <DialogHeader>
-                          <DialogTitle className="bg-[#064263] text-white p-4 rounded-t-lg">
+                          <DialogTitle className="bg-[#064263] text-white rounded-t-lg">
                             Update Pembaruan
                           </DialogTitle>
                           <div className="m-4">
@@ -331,14 +348,22 @@ const DesainIndustriPage = () => {
                               htmlFor="status"
                               className="block text-sm font-medium mb-1"
                             />
-                            <Select onValueChange={(value) => setValue(value)}>
+                            <Select
+                              onValueChange={(val) => setValue(val)}
+                              value={value}
+                            >
                               <SelectTrigger className="w-full border rounded px-2 py-1">
                                 <SelectValue placeholder="Pilih status" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="setujui">Setujui</SelectItem>
-                                <SelectItem value="ditunda">Ditunda</SelectItem>
-                                <SelectItem value="ditolak">Ditolak</SelectItem>
+                                {statusUpdatePembaruan.map((update) => (
+                                  <SelectItem
+                                    key={update.value}
+                                    value={update.value}
+                                  >
+                                    {update.label}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>
@@ -347,24 +372,85 @@ const DesainIndustriPage = () => {
                           <DialogClose asChild>
                             <div className="space-x-2">
                               <Buttons
-                                variant="default"
+                                variant="defaultSecond"
                                 size="sm"
                                 onClick={() => handleCancel()}
-                                className="w-20 text-white p-2"
+                                className="w-20 p-2"
                               >
                                 Batal
                               </Buttons>
                               <Buttons
-                                variant="destructive"
+                                variant="default"
                                 size="sm"
                                 onClick={() => handleSimpan()}
-                                className="w-40 text-white p-2"
+                                className="w-40 p-2"
                               >
                                 Simpan Perubahan
                               </Buttons>
                             </div>
                           </DialogClose>
                         </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+
+                    <Dialog
+                      open={showHapusDesainIndustri}
+                      onOpenChange={setShowHapusDesainIndustri}
+                    >
+                      <DialogContent className="sm:max-w-[372px] h-[331px] p-0 rounded-2xl">
+                        <VisuallyHidden>
+                          <DialogTitle>
+                            Konfirmasi Hapus Desain Industri
+                          </DialogTitle>
+                        </VisuallyHidden>
+                        <div className="px-8 pt-8">
+                          <div className="flex justify-center items-center mt-6">
+                            <Image
+                              src="/icon/Group 303.svg"
+                              alt="Icon Delete"
+                              width={70}
+                              height={70}
+                            />
+                          </div>
+
+                          <div className="m-4 text-center space-y-2">
+                            <p className="font-semibold text-lg text-black">
+                              Hapus Desain Industri
+                            </p>
+                            <p className="tex-xs text-[#888888]">
+                              Apakah Kamu yakin ingin menghapus desain industri
+                              ini?
+                            </p>
+                          </div>
+                        </div>
+
+                        <DialogFooterHapus className="p-4">
+                          <DialogClose asChild>
+                            <div className="space-x-2">
+                              <Buttons
+                                variant="defaultSecond"
+                                size="sm"
+                                onClick={() =>
+                                  handleCancelHapusDesainIndustri()
+                                }
+                                className="w-20 p-2 bg-[#DC35451A]  text-[#DC3545] px-4 py-2 mr-3 rounded-md cursor-pointer"
+                              >
+                                Batal
+                              </Buttons>
+                              <Buttons
+                                variant="default"
+                                size="sm"
+                                onClick={() =>
+                                  handleSimpanHapusDesainIndustri()
+                                }
+                                className="w-40 p-2 bg-[#DC3545] text-white px-4 py-2 rounded-md cursor-pointer "
+                              >
+                                <Trash2 />
+                                Hapus Data
+                              </Buttons>
+                            </div>
+                          </DialogClose>
+                        </DialogFooterHapus>
                       </DialogContent>
                     </Dialog>
                   </TableCell>
