@@ -4,6 +4,7 @@ import Buttons from "@/components/atoms/buttons";
 import Inputs from "@/components/atoms/inputs";
 import Labels from "@/components/atoms/labels";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -39,7 +40,13 @@ import {
   DropdownMenuItem,
 } from "@radix-ui/react-dropdown-menu";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { MoreHorizontalIcon, Plus, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  MoreHorizontalIcon,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -67,11 +74,21 @@ const MerkPage = () => {
   const [showUpdatePembaruan, setShowUpdatePembaruan] = useState(false);
   const [showHapusMerk, setShowHapusMerk] = useState(false);
   const [showTambahData, setShowTambahData] = useState(false);
+  const [showKadaluarsa, setShowKadaluarsa] = useState(false);
   const [value, setValue] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loadingUpload, setLoadingUpload] = useState(false);
   const [progress, setProgress] = useState(13);
+  const [page, setPage] = useState<number>(1);
+
+  // nomor permohonan
+  // nomor pendaftaran
+  // status (-, tdk diperpanjga, dalam promises, selesai)
+  // tgl berakhir perlindungan
+  // link pdki
+  // nama pemegang haki
+  // e-tiket merk
 
   useEffect(() => {
     const timer = setTimeout(() => setProgress(100), 500);
@@ -165,7 +182,60 @@ const MerkPage = () => {
       statusPembaruan: "Tidak Diperpanjang",
       pemegangHAKI: "Atiqa Zaviera",
     },
+    {
+      etiketMerk: "PNM",
+      status: "Selesai",
+      noPermohonan: "J0020140463456789",
+      noPendaftaran: "IDM000550171",
+      linkPDKI: "Buka Link",
+      tglBerakhirPerlindungan: "2025-11-18",
+      sisaWaktuPerlindungan: "Sisa Waktu Perlindungan Tersedia",
+      statusPembaruan: "Tidak Diperpanjang",
+      pemegangHAKI: "Atiqa Zaviera",
+    },
+    {
+      etiketMerk: "PNM",
+      status: "Selesai",
+      noPermohonan: "J00201404634567777",
+      noPendaftaran: "IDM000550171",
+      linkPDKI: "Buka Link",
+      tglBerakhirPerlindungan: "2025-07-18",
+      sisaWaktuPerlindungan: "Sisa Waktu Perlindungan Habis",
+      statusPembaruan: "Tidak Diperpanjang",
+      pemegangHAKI: "Atiqa Zaviera",
+    },
+    {
+      etiketMerk: "PNM",
+      status: "Selesai",
+      noPermohonan: "J00201404634568889",
+      noPendaftaran: "IDM000550171",
+      linkPDKI: "Buka Link",
+      tglBerakhirPerlindungan: "2025-11-18",
+      sisaWaktuPerlindungan: "Sisa Waktu Perlindungan Tersedia",
+      statusPembaruan: "Tidak Diperpanjang",
+      pemegangHAKI: "Atiqa Zaviera",
+    },
   ];
+
+  const isKadaluarsa = (tanggal: string) => {
+    if (!tanggal) return false;
+
+    const [year, month, day] = tanggal.split("-").map(Number);
+
+    const expDate = new Date(year, month - 1, day); // LOCAL date, aman
+    const today = new Date();
+
+    // Set jam jadi 00:00 biar fair comparison
+    today.setHours(0, 0, 0, 0);
+
+    return expDate < today;
+  };
+
+  const formatToYMD = (tanggal: string) => {
+    if (!tanggal) return "-";
+    const [y, m, d] = tanggal.split("-");
+    return `${y}-${m}-${d}`;
+  };
 
   return (
     <>
@@ -188,6 +258,22 @@ const MerkPage = () => {
             <Plus /> Tambah Data
           </Buttons>
         </div>
+      </div>
+
+      {/* Checkbox */}
+      <div className="flex items-center gap-2 mx-4 mt-4">
+        <Checkbox
+          id="terms"
+          onCheckedChange={(showKadaluarsa) =>
+            setShowKadaluarsa(!!showKadaluarsa)
+          }
+          className="h-5 w-5"
+        />
+        <Labels
+          htmlFor="toggle"
+          text="Tampilkan Status Kadaluarsa"
+          className="text-sm font-semibold leading-none"
+        />
       </div>
       <Table className="bg-white m-5 rounded-xl">
         <TableHeader>
@@ -227,7 +313,14 @@ const MerkPage = () => {
               } = item;
 
               return (
-                <TableRow key={noPermohonan}>
+                <TableRow
+                  key={noPermohonan}
+                  className={
+                    showKadaluarsa && isKadaluarsa(tglBerakhirPerlindungan)
+                      ? "border-l-4 border-l-[#DC3545] bg-[#DC35451A]"
+                      : ""
+                  }
+                >
                   <TableCell>{etiketMerk}</TableCell>
                   <TableCell>{status}</TableCell>
                   <TableCell>{noPermohonan}</TableCell>
@@ -245,7 +338,7 @@ const MerkPage = () => {
                   </TableCell>
                   <TableCell>
                     {tglBerakhirPerlindungan
-                      ? new Date(tglBerakhirPerlindungan).toLocaleDateString()
+                      ? formatToYMD(tglBerakhirPerlindungan)
                       : "-"}
                   </TableCell>
                   <TableCell className="max-w-xs truncate">
@@ -268,7 +361,7 @@ const MerkPage = () => {
                         <DropdownMenuGroup className="space-y-1">
                           <DropdownMenuItem
                             onSelect={() => setShowEditMerk(true)}
-                            className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A] group"
+                            className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
                             <div className="text-sm hover:font-semibold flex items-center justify-start">
                               <Image
@@ -586,6 +679,48 @@ const MerkPage = () => {
           )}
         </TableBody>
       </Table>
+
+      <div className="flex items-center justify-between w-full py-3 px-8">
+        {/* LEFT: Show entries */}
+        <div className="flex items-center gap-2">
+          <span>Show</span>
+
+          <select className="border rounded-md px-2 py-1">
+            <option>10</option>
+            <option>25</option>
+            <option>50</option>
+          </select>
+
+          <span>entries</span>
+        </div>
+
+        {/* RIGHT: Pagination */}
+        <div className="flex items-center gap-2">
+          {/* Prev Button */}
+          <button
+            onClick={() => setPage(page - 1)}
+            disabled={page === 1}
+            className="p-2 rounded-md disabled:opacity-40 hover:bg-gray-200 transition"
+          >
+            <ChevronLeft size={16} />
+          </button>
+
+          {/* Page Number (Blue) */}
+          <div className="px-3 py-1 rounded-md bg-[#0A6E94] text-white font-medium">
+            {page}
+          </div>
+
+          {/* Next Button */}
+          <button
+            onClick={() => setPage(page + 1)}
+            disabled={DataTableMerk.length < 10}
+            className="p-2 rounded-md disabled:opacity-40 hover:bg-gray-200 transition"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      </div>
+
       <Dialog open={showTambahData} onOpenChange={setShowTambahData}>
         <DialogContent className="sm:max-w-[788px] p-0">
           <DialogHeader>
@@ -625,14 +760,16 @@ const MerkPage = () => {
                   htmlFor="status"
                   className="block text-sm font-medium mb-1"
                 />
-                <Select onValueChange={(value) => setValue(value)}>
+                <Select onValueChange={(val) => setValue(val)} value={value}>
                   <SelectTrigger className="w-full border rounded px-2 py-1">
                     <SelectValue placeholder="Pilih status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="setujui">Setujui</SelectItem>
-                    <SelectItem value="ditunda">Ditunda</SelectItem>
-                    <SelectItem value="ditolak">Ditolak</SelectItem>
+                    {statusUpdatePembaruan.map((update) => (
+                      <SelectItem key={update.value} value={update.value}>
+                        {update.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -833,7 +970,6 @@ const MerkPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      ;
     </>
   );
 };

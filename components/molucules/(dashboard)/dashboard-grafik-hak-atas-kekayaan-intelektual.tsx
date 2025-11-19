@@ -70,6 +70,10 @@ const HakAtasKekayaanIntelektual = () => {
           </ChartContainer>
         </CardContent>
       </Card>
+      {/* <button className="relative overflow-hidden bg-blue-600 text-white px-6 py-2 rounded-md group">
+  <span className="relative z-10">Hover Saya</span>
+  <span className="absolute inset-0 bg-blue-800 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 ease-in-out"></span>
+</button> */}
     </>
   );
 };
