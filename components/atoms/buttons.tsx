@@ -14,11 +14,23 @@ interface ButtonsProps {
     | "link";
   size: string | "sm" | "lg";
   children: React.ReactNode;
+  disabled?: boolean;
 }
 
-const Buttons = ({ onClick, className, variant, children }: ButtonsProps) => {
+const Buttons = ({
+  onClick,
+  className,
+  variant,
+  children,
+  disabled = false,
+}: ButtonsProps) => {
   return (
-    <Button onClick={onClick} className={className} variant={variant}>
+    <Button
+      onClick={onClick}
+      className={className}
+      variant={variant}
+      disabled={disabled}
+    >
       {children}
     </Button>
   );
