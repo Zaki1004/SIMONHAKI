@@ -668,16 +668,15 @@ const PatenPage = () => {
                 </Labels>
                 <Popover open={openDatePicker} onOpenChange={setOpenDatePicker}>
                   <PopoverTrigger asChild>
-                    <Buttons
+                    <Button
                       variant="outline"
                       className="w-full justify-between font-normal"
-                      size=""
                     >
                       {tglBerakhirPerlindungan
                         ? tglBerakhirPerlindungan.toLocaleDateString()
                         : "Masukkan tanggal berakhir perlindungan"}
                       <ChevronDownIcon className="ml-2 h-4 w-4 opacity-50" />
-                    </Buttons>
+                    </Button>
                   </PopoverTrigger>
 
                   <PopoverContent className="w-auto p-0" align="start">
