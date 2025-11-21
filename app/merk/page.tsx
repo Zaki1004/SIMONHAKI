@@ -23,9 +23,7 @@ import {
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
-  PaginationLink,
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
@@ -54,8 +52,6 @@ import { Popover, PopoverTrigger } from "@radix-ui/react-popover";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import {
   ChevronDownIcon,
-  ChevronLeft,
-  ChevronRight,
   MoreHorizontalIcon,
   Plus,
   Trash2,
@@ -107,12 +103,9 @@ const MerkPage = () => {
   const [loadingUpload, setLoadingUpload] = useState(false);
   const [progress, setProgress] = useState(13);
   const [openDatePicker, setOpenDatePicker] = useState(false);
-  const [perPage, setPerPage] = useState(2);
+  const [perPage, setPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
-
-  // const handleChange = (key: string, value: string | null) => {
-  //   setFormTambahData((prev) => ({ ...prev, [key]: value }));
-  // };
+  const router = useRouter();
 
   const isFormValid =
     nomorPermohonan &&
@@ -166,8 +159,6 @@ const MerkPage = () => {
     fileInputRef.current?.click();
   };
 
-  const router = useRouter();
-
   const handleHapusImages = () => {
     setSelectedFile(null);
   };
@@ -195,12 +186,10 @@ const MerkPage = () => {
       pemegangHAKI: namaPemegangHaki || "",
     };
 
-    // Append to component state; if state was empty, use the initial dataTableMerk as fallback
     setDataTableMerk((prev) => [...prev, newData]);
 
     setShowTambahData(false);
 
-    // reset form fields
     setNomorPermohonan("");
     setNomorPendaftaran("");
     setTglBerakhirPerlindungan(undefined);
@@ -311,11 +300,9 @@ const MerkPage = () => {
 
   // Hitung total halaman
   const totalPages = Math.ceil(dataTableMerk.length / perPage);
-
   // Disable prev/next
   const isFirstPage = currentPage === 1;
   const isLastPage = currentPage === totalPages || totalPages === 0;
-
   // Data yang ditampilkan sesuai halaman
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * perPage;
@@ -771,8 +758,8 @@ const MerkPage = () => {
         </TableBody>
       </Table>
 
+      {/* DROPDOWN SHOW ENTRIES */}
       <div className="w-full flex justify-between px-8">
-        {/* DROPDOWN SHOW ENTRIES */}
         <div className="flex items-center gap-2 px-4 py-3">
           <span>Show</span>
 
@@ -826,6 +813,7 @@ const MerkPage = () => {
         </div>
       </div>
 
+      {/* Dialog Tambah Data Merk */}
       <Dialog open={showTambahData} onOpenChange={setShowTambahData}>
         <DialogContent className="sm:max-w-[788px] p-0">
           <DialogHeader>
