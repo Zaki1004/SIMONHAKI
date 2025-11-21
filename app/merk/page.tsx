@@ -613,12 +613,37 @@ const MerkPage = () => {
                                 Tanggal Berakhir Perlindungan
                                 <span className="text-red-500 ml-1">*</span>
                               </Labels>
-                              <Inputs
-                                type="text"
-                                placeholder="2069-03-27"
-                                className="w-full border rounded px-2 py-1"
-                                onChange={(e) => setValue(e.target.value)}
-                              />
+                              <Popover
+                                open={openDatePicker}
+                                onOpenChange={setOpenDatePicker}
+                              >
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className="w-full justify-between font-normal"
+                                  >
+                                    {tglBerakhirPerlindungan
+                                      ? tglBerakhirPerlindungan.toLocaleDateString()
+                                      : "Masukkan tanggal berakhir perlindungan"}
+                                    <ChevronDownIcon className="ml-2 h-4 w-4 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+
+                                <PopoverContent
+                                  className="w-auto p-0"
+                                  align="start"
+                                >
+                                  <Calendar
+                                    mode="single"
+                                    selected={tglBerakhirPerlindungan}
+                                    captionLayout="dropdown"
+                                    onSelect={(date) => {
+                                      setTglBerakhirPerlindungan(date);
+                                      setOpenDatePicker(false);
+                                    }}
+                                  />
+                                </PopoverContent>
+                              </Popover>
                             </div>
                             <div>
                               <Labels
