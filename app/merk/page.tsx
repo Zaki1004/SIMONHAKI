@@ -77,6 +77,11 @@ interface Status {
   value: string;
   label: string;
 }
+interface UpdateStatusPembaruanProps {
+  value: string;
+  label: string;
+  code: string;
+}
 interface Nama {
   value: string;
   code: string;
@@ -97,6 +102,7 @@ const MerkPage = () => {
   const [linkPdki, setLinkPdki] = useState("");
   const [namaPemegangHaki, setNamaPemegangHaki] = useState("");
   const [statusTambahData, setStatusTambahData] = useState("");
+  const [updateStatusPembaruan, setUpdateStatusPembaruan] = useState("");
   const [fileEtiketMerk, setFileEtiketMerk] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -106,6 +112,7 @@ const MerkPage = () => {
   const [perPage, setPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
+  const [search, setSearch] = useState("");
 
   const isFormValid =
     nomorPermohonan &&
@@ -159,15 +166,15 @@ const MerkPage = () => {
     fileInputRef.current?.click();
   };
 
-  const handleHapusImages = () => {
-    setSelectedFile(null);
+  const handleSearch = (value: string) => {
+    setSearch(value);
   };
 
-  const handleCancel = () => {
+  const handleCancelTambahData = () => {
     router.push("/merk");
   };
 
-  const handleSimpan = () => {
+  const handleSimpanTambahData = () => {
     const newData: DataMerksProps = {
       etiketMerk: selectedFile
         ? URL.createObjectURL(selectedFile)
@@ -200,6 +207,36 @@ const MerkPage = () => {
     setFileEtiketMerk(null);
   };
 
+  const handleHapusImages = () => {
+    setSelectedFile(null);
+  };
+
+  const handleCancelEditMerk = () => {
+    router.push("/merk");
+  };
+
+  const handleSimpanEditMerk = () => {
+    setShowEditMerk(false);
+    router.push("/merk");
+  };
+  const handleCancelUpdateMerk = () => {
+    router.push("/merk");
+  };
+
+  const handleSimpanUpdateMerk = () => {
+    setShowUpdatePembaruan(false);
+    router.push("/merk");
+  };
+
+  const handleCancelHapusMerk = () => {
+    router.push("/merk");
+  };
+
+  const handleSimpanHapusMerk = () => {
+    setShowHapusMerk(false);
+    router.push("/merk");
+  };
+
   // const hitungSisaWaktu = (tanggal: Date | number | null) => {
   //   if (!tanggal) return "-";
 
@@ -211,17 +248,15 @@ const MerkPage = () => {
   //   return `${days} hari`;
   // };
 
-  const handleCancelHapusMerk = () => {
-    router.push("/merk");
-  };
-
-  const handleSimpanHapusMerk = () => {
-    router.push("/merk");
-  };
-
-  const statusUpdatePembaruan: Status[] = [
+  const statusTambah: Status[] = [
     { value: "didaftar", label: "Didaftar" },
     { value: "ditolak", label: "Ditolak KBM" },
+  ];
+  const statusUpdatePembaruan: UpdateStatusPembaruanProps[] = [
+    { value: "none", label: "-", code: "-" },
+    { value: "tidak-diperpanjang", label: "Tidak Diperpanjang", code: "TDP" },
+    { value: "dalam-proses", label: "Dalam Proses", code: "DPS" },
+    { value: "selesai", label: "Selesai", code: "SLS" },
   ];
 
   const pemegangHaki: Nama[] = [
@@ -318,7 +353,8 @@ const MerkPage = () => {
             type="search"
             placeholder="Cari Merk"
             className="w-[287px] rounded-md px-2 py-1"
-            onChange={(e) => setValue(e.target.value)}
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
           />
 
           <Buttons
@@ -496,10 +532,12 @@ const MerkPage = () => {
                           <div className="grid grid-cols-2 grid-rows-4 gap-4 p-4">
                             <div>
                               <Labels
-                                text="E-Tiket Merk"
                                 htmlFor="etiket-merk"
                                 className="block text-sm font-medium mb-1"
-                              />
+                              >
+                                E-Tiket Merk
+                                <span className="text-red-500 ml-1">*</span>
+                              </Labels>
                               <Inputs
                                 type="text"
                                 placeholder="121"
@@ -509,19 +547,23 @@ const MerkPage = () => {
                             </div>
                             <div>
                               <Labels
-                                text="Status"
                                 htmlFor="status"
                                 className="block text-sm font-medium mb-1"
-                              />
+                              >
+                                Status
+                                <span className="text-red-500 ml-1">*</span>
+                              </Labels>
                               <Select
-                                onValueChange={(val) => setValue(val)}
-                                value={value}
+                                onValueChange={(val) =>
+                                  setStatusTambahData(val)
+                                }
+                                value={statusTambahData}
                               >
                                 <SelectTrigger className="w-full border rounded px-2 py-1">
                                   <SelectValue placeholder="Pilih status" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {statusUpdatePembaruan.map((update) => (
+                                  {statusTambah.map((update) => (
                                     <SelectItem
                                       key={update.value}
                                       value={update.value}
@@ -535,10 +577,12 @@ const MerkPage = () => {
 
                             <div>
                               <Labels
-                                text="Nomor Permohonan"
                                 htmlFor="no-permohonan"
                                 className="block text-sm font-medium mb-1"
-                              />
+                              >
+                                Nomor Permohonan
+                                <span className="text-red-500 ml-1">*</span>
+                              </Labels>
                               <Inputs
                                 type="text"
                                 placeholder="J002014046345"
@@ -548,10 +592,12 @@ const MerkPage = () => {
                             </div>
                             <div>
                               <Labels
-                                text="Nomor Pendaftaran"
                                 htmlFor="no-pendaftaran"
                                 className="block text-sm font-medium mb-1"
-                              />
+                              >
+                                Nomor Pendaftaran
+                                <span className="text-red-500 ml-1">*</span>
+                              </Labels>
                               <Inputs
                                 type="text"
                                 placeholder="IDM000550171"
@@ -561,10 +607,12 @@ const MerkPage = () => {
                             </div>
                             <div>
                               <Labels
-                                text="Tanggal Berakhir Perlindungan"
                                 htmlFor="tanggal-berakhir-perlindungan"
                                 className="block text-sm font-medium mb-1"
-                              />
+                              >
+                                Tanggal Berakhir Perlindungan
+                                <span className="text-red-500 ml-1">*</span>
+                              </Labels>
                               <Inputs
                                 type="text"
                                 placeholder="2069-03-27"
@@ -574,10 +622,12 @@ const MerkPage = () => {
                             </div>
                             <div>
                               <Labels
-                                text="Link PDKI"
                                 htmlFor="link-pdki"
                                 className="block text-sm font-medium mb-1"
-                              />
+                              >
+                                Link PDKI
+                                <span className="text-red-500 ml-1">*</span>
+                              </Labels>
                               <Inputs
                                 type="text"
                                 placeholder="https://simonhaki.pnm.co.id"
@@ -587,10 +637,12 @@ const MerkPage = () => {
                             </div>
                             <div>
                               <Labels
-                                text="Nama Pemegang HAKI"
                                 htmlFor="nama-pemegang-haki"
                                 className="block text-sm font-medium mb-1"
-                              />
+                              >
+                                Nama Pemegang HAKI
+                                <span className="text-red-500 ml-1">*</span>
+                              </Labels>
                               <Select
                                 onValueChange={(val) => setValue(val)}
                                 value={value}
@@ -599,7 +651,7 @@ const MerkPage = () => {
                                   <SelectValue placeholder="Nama pemegang HAKI" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {statusUpdatePembaruan.map((update) => (
+                                  {statusTambah.map((update) => (
                                     <SelectItem
                                       key={update.value}
                                       value={update.value}
@@ -614,25 +666,23 @@ const MerkPage = () => {
                         </DialogHeader>
                         <DialogFooter className="p-4">
                           <DialogClose asChild>
-                            <div className="space-x-2">
-                              <Buttons
-                                variant="defaultSecond"
-                                size="sm"
-                                onClick={() => handleCancel()}
-                                className="w-20 p-2"
-                              >
-                                Batal
-                              </Buttons>
-                              <Buttons
-                                variant="default"
-                                size="sm"
-                                onClick={() => handleSimpan()}
-                                className="w-40 text-white p-2"
-                              >
-                                Simpan Perubahan
-                              </Buttons>
-                            </div>
+                            <Buttons
+                              variant="defaultSecond"
+                              size="sm"
+                              onClick={() => handleCancelEditMerk()}
+                              className="w-20 p-2"
+                            >
+                              Batal
+                            </Buttons>
                           </DialogClose>
+                          <Buttons
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleSimpanEditMerk()}
+                            className="w-40 ml-2 p-2"
+                          >
+                            Simpan Perubahan
+                          </Buttons>
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
@@ -649,13 +699,16 @@ const MerkPage = () => {
                           </DialogTitle>
                           <div className="m-4">
                             <Labels
-                              text="Status"
                               htmlFor="status"
                               className="block text-sm font-medium mb-1"
-                            />
+                            >
+                              Status<span className="text-red-500 ml-1">*</span>
+                            </Labels>
                             <Select
-                              onValueChange={(val) => setValue(val)}
-                              value={value}
+                              onValueChange={(val) =>
+                                setUpdateStatusPembaruan(val)
+                              }
+                              value={updateStatusPembaruan}
                             >
                               <SelectTrigger className="w-full border rounded px-2 py-1">
                                 <SelectValue placeholder="Pilih status" />
@@ -679,7 +732,7 @@ const MerkPage = () => {
                               <Buttons
                                 variant="defaultSecond"
                                 size="sm"
-                                onClick={() => handleCancel()}
+                                onClick={() => handleCancelUpdateMerk()}
                                 className="w-20 p-2"
                               >
                                 Batal
@@ -687,7 +740,7 @@ const MerkPage = () => {
                               <Buttons
                                 variant="default"
                                 size="sm"
-                                onClick={() => handleSimpan()}
+                                onClick={() => handleSimpanUpdateMerk()}
                                 className="w-40 text-white p-2"
                               >
                                 Simpan Perubahan
@@ -866,7 +919,7 @@ const MerkPage = () => {
                     <SelectValue placeholder="Pilih status" />
                   </SelectTrigger>
                   <SelectContent>
-                    {statusUpdatePembaruan.map((update) => (
+                    {statusTambah.map((update) => (
                       <SelectItem key={update.value} value={update.value}>
                         {update.label}
                       </SelectItem>
@@ -1087,7 +1140,7 @@ const MerkPage = () => {
               <Buttons
                 variant="defaultSecond"
                 size="sm"
-                onClick={() => handleCancel()}
+                onClick={() => handleCancelTambahData()}
                 className="w-20 p-2 mr-2"
               >
                 Batal
@@ -1097,7 +1150,7 @@ const MerkPage = () => {
               variant="default"
               size="sm"
               disabled={!isFormValid}
-              onClick={() => handleSimpan()}
+              onClick={() => handleSimpanTambahData()}
               className={`w-40 p-2 text-white ${
                 !isFormValid
                   ? "opacity-50 cursor-not-allowed"
