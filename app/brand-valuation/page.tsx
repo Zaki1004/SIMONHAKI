@@ -246,7 +246,7 @@ const BrandValuationPage = () => {
                       open={showEditBrandValuation}
                       onOpenChange={setShowEditBrandValuation}
                     >
-                      <DialogContent className="sm:max-w-[788px] h-[379px] p-0">
+                      <DialogContent className="sm:max-w-[788px] h-[350px] p-0">
                         <DialogHeader>
                           <DialogTitle className="bg-[#064263] text-white rounded-t-lg">
                             Edit Brand Valuation
