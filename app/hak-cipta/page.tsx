@@ -505,12 +505,26 @@ const HakCiptaPage = () => {
                                 Nama Pemegang HAKI{" "}
                                 <span className="text-red-500 ml-1">*</span>
                               </Labels>
-                              <Inputs
-                                type="text"
-                                placeholder="Atiqa Zaviera"
-                                className="w-full border rounded px-2 py-1"
-                                onChange={(e) => setValue(e.target.value)}
-                              />
+                              <Select
+                                onValueChange={(val) =>
+                                  setNamaPemegangHaki(val)
+                                }
+                                value={namaPemegangHaki}
+                              >
+                                <SelectTrigger className="w-full border rounded px-2 py-1">
+                                  <SelectValue placeholder="Pilih nama pemegang HAKI" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {pemegangHaki.map((nama) => (
+                                    <SelectItem
+                                      key={nama.value}
+                                      value={nama.value}
+                                    >
+                                      {nama.value}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
                           </div>
                         </DialogHeader>

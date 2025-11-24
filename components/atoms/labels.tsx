@@ -2,13 +2,13 @@ import { Label } from "@radix-ui/react-label";
 import React from "react";
 
 interface LabelsProps {
-  text?: string;
+  // text?: string;
   htmlFor: string;
   className: string;
   children?: React.ReactNode;
 }
 
-const Labels = ({ text, htmlFor, className, children }: LabelsProps) => {
+const Labels = ({ htmlFor, className, children }: LabelsProps) => {
   return (
     <div>
       <Label htmlFor={htmlFor} className={className}>
