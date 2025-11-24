@@ -4,6 +4,8 @@ import Buttons from "@/components/atoms/buttons";
 import Inputs from "@/components/atoms/inputs";
 import Labels from "@/components/atoms/labels";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -19,6 +21,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -31,11 +52,17 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@radix-ui/react-dropdown-menu";
-import { MoreHorizontalIcon, Plus, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import {
+  ChevronDownIcon,
+  MoreHorizontalIcon,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ChangeEvent, useMemo, useState } from "react";
 
 type DataBrandValuationProps = {
   namaBrand: string;
@@ -43,9 +70,9 @@ type DataBrandValuationProps = {
   pemegangHAKI: string;
 };
 
-interface Status {
+interface Nama {
   value: string;
-  label: string;
+  code: string;
 }
 
 const BrandValuationPage = () => {
@@ -54,12 +81,45 @@ const BrandValuationPage = () => {
   const [showTambahData, setShowTambahData] = useState(false);
   const [value, setValue] = useState("");
   const router = useRouter();
+  const [namaBrand, setNamaBrand] = useState("");
+  const [brandValuation, setBrandValuation] = useState("");
+  const [namaPemegangHaki, setNamaPemegangHaki] = useState("");
+  const [search, setSearch] = useState("");
+  const [perPage, setPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const handleCancel = () => {
+  const isFormValid = namaBrand && brandValuation && namaPemegangHaki;
+
+  const handleSearch = (value: string) => {
+    setSearch(value);
+  };
+
+  const handleSimpanTambahData = () => {
+    const newData: DataBrandValuationProps = {
+      namaBrand: namaBrand,
+      brandValuation: brandValuation,
+      pemegangHAKI: namaPemegangHaki,
+    };
+
+    setDataTableBrandValuation((prev) => [...prev, newData]);
+
+    setShowTambahData(false);
+
+    setNamaBrand("");
+    setBrandValuation("");
+    setNamaPemegangHaki("");
+  };
+
+  const handleCancelTambahData = () => {
     router.push("/brand-valuation");
   };
 
-  const handleSimpan = () => {
+  const handleCancelEditBrandValuation = () => {
+    router.push("/brand-valuation");
+  };
+
+  const handleSimpanEditBrandValuation = () => {
+    setShowEditBrandValuation(false);
     router.push("/brand-valuation");
   };
 
@@ -68,25 +128,36 @@ const BrandValuationPage = () => {
   };
 
   const handleSimpanHapusBrandValuation = () => {
+    setShowHapusBrandValuation(false);
     router.push("/brand-valuation");
   };
 
-  const statusUpdatePembaruan: Status[] = [
-    {
-      value: "setujui",
-      label: "Setujui",
-    },
-    { value: "ditunda", label: "Ditunda" },
-    { value: "ditolak", label: "Ditolak" },
+  const pemegangHaki: Nama[] = [
+    { value: "Atiqa Zaviera", code: "AZA" },
+    { value: "Zaviera Atiqa", code: "ZAA" },
   ];
 
-  const DataTableMerk: DataBrandValuationProps[] = [
+  const [dataTableBrandValuation, setDataTableBrandValuation] = useState<
+    DataBrandValuationProps[]
+  >([
     {
       namaBrand: "Red-Flower",
       brandValuation: "Bunga",
       pemegangHAKI: "Atiqa Zaviera",
     },
-  ];
+  ]);
+
+  // Hitung total halaman
+  const totalPages = Math.ceil(dataTableBrandValuation.length / perPage);
+  // Disable prev/next
+  const isFirstPage = currentPage === 1;
+  const isLastPage = currentPage === totalPages || totalPages === 0;
+  // Data yang ditampilkan sesuai halaman
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * perPage;
+    return dataTableBrandValuation.slice(start, start + perPage);
+  }, [currentPage, perPage, dataTableBrandValuation]);
+
   return (
     <>
       <div className="bg-white p-4 flex justify-between">
@@ -94,9 +165,10 @@ const BrandValuationPage = () => {
         <div>
           <Inputs
             type="search"
+            value={search}
             placeholder="Cari Brand Evaluation"
             className="rounded-md w-[287px] px-2"
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
           />
           <Buttons
             variant="default"
@@ -118,14 +190,14 @@ const BrandValuationPage = () => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {DataTableMerk.length === 0 ? (
+          {paginatedData.length === 0 ? (
             <TableRow>
               <TableCell colSpan={10} className="text-center py-8">
                 Tidak ada data
               </TableCell>
             </TableRow>
           ) : (
-            DataTableMerk.map((item) => {
+            paginatedData.map((item) => {
               const { namaBrand, brandValuation, pemegangHAKI } = item;
 
               return (
@@ -182,10 +254,12 @@ const BrandValuationPage = () => {
                           <div className="grid grid-cols-2 grid-rows-2 gap-4 p-4">
                             <div className="col-span-2">
                               <Labels
-                                text="Nama Brand"
                                 htmlFor="nama-brand"
                                 className="block text-sm font-medium mb-1"
-                              />
+                              >
+                                Nama Brand
+                                <span className="text-red-500 ml-2">*</span>
+                              </Labels>
                               <Inputs
                                 type="text"
                                 placeholder="Red-Flower"
@@ -196,10 +270,12 @@ const BrandValuationPage = () => {
 
                             <div>
                               <Labels
-                                text="Brand Valuation"
                                 htmlFor="brand-valuation"
                                 className="block text-sm font-medium mb-1"
-                              />
+                              >
+                                Brand Valuation
+                                <span className="text-red-500 ml-2">*</span>
+                              </Labels>
                               <Inputs
                                 type="text"
                                 placeholder="Bunga"
@@ -210,40 +286,54 @@ const BrandValuationPage = () => {
 
                             <div>
                               <Labels
-                                text="Nama Pemegang HAKI"
                                 htmlFor="nama-pemegang-haki"
                                 className="block text-sm font-medium mb-1"
-                              />
-                              <Inputs
-                                type="text"
-                                placeholder="Atiqa Zaviera"
-                                className="w-full border rounded px-2 py-1"
-                                onChange={(e) => setValue(e.target.value)}
-                              />
+                              >
+                                Nama Pemegang HAKI
+                                <span className="text-red-500 ml-2">*</span>
+                              </Labels>
+                              <Select
+                                onValueChange={(val) =>
+                                  setNamaPemegangHaki(val)
+                                }
+                                value={namaPemegangHaki}
+                              >
+                                <SelectTrigger className="w-full border rounded px-2 py-1">
+                                  <SelectValue placeholder="Pilih nama pemegang HAKI" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {pemegangHaki.map((nama) => (
+                                    <SelectItem
+                                      key={nama.value}
+                                      value={nama.value}
+                                    >
+                                      {nama.value}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
                           </div>
                         </DialogHeader>
                         <DialogFooter className="p-4">
                           <DialogClose asChild>
-                            <div className="space-x-2">
-                              <Buttons
-                                variant="defaultSecond"
-                                size="sm"
-                                onClick={() => handleCancel()}
-                                className="w-20 p-2"
-                              >
-                                Batal
-                              </Buttons>
-                              <Buttons
-                                variant="default"
-                                size="sm"
-                                onClick={() => handleSimpan()}
-                                className="w-40 p-2"
-                              >
-                                Simpan Perubahan
-                              </Buttons>
-                            </div>
+                            <Buttons
+                              variant="defaultSecond"
+                              size="sm"
+                              onClick={() => handleCancelEditBrandValuation()}
+                              className="w-20 p-2"
+                            >
+                              Batal
+                            </Buttons>
                           </DialogClose>
+                          <Buttons
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleSimpanEditBrandValuation()}
+                            className="w-40 ml-2 p-2"
+                          >
+                            Simpan Perubahan
+                          </Buttons>
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
@@ -281,30 +371,24 @@ const BrandValuationPage = () => {
 
                         <DialogFooterHapus className="p-4">
                           <DialogClose asChild>
-                            <div className="space-x-2">
-                              <Buttons
-                                variant="defaultSecond"
-                                size="sm"
-                                onClick={() =>
-                                  handleCancelHapusBrandValuation()
-                                }
-                                className="w-20 p-2 bg-[#DC35451A] text-[#DC3545] px-4 py-2 mr-3 rounded-md cursor-pointer"
-                              >
-                                Batal
-                              </Buttons>
-                              <Buttons
-                                variant="default"
-                                size="sm"
-                                onClick={() =>
-                                  handleSimpanHapusBrandValuation()
-                                }
-                                className="w-50 p-2 bg-[#DC3545] text-white px-4 py-2 rounded-md cursor-pointer "
-                              >
-                                <Trash2 />
-                                Hapus Brand Valuation
-                              </Buttons>
-                            </div>
+                            <Buttons
+                              variant="defaultSecond"
+                              size="sm"
+                              onClick={() => handleCancelHapusBrandValuation()}
+                              className="w-20 p-2 bg-[#DC35451A] text-[#DC3545] px-4 py-2 mr-3 rounded-md cursor-pointer"
+                            >
+                              Batal
+                            </Buttons>
                           </DialogClose>
+                          <Buttons
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleSimpanHapusBrandValuation()}
+                            className="w-50 p-2 bg-[#DC3545] ml-2 px-4 py-2 rounded-md cursor-pointer "
+                          >
+                            <Trash2 />
+                            Hapus Brand Valuation
+                          </Buttons>
                         </DialogFooterHapus>
                       </DialogContent>
                     </Dialog>
@@ -324,70 +408,136 @@ const BrandValuationPage = () => {
             <div className="grid grid-cols-2 gap-4 p-4">
               <div className="col-span-2">
                 <Labels
-                  text="Nama Brand"
                   htmlFor="nama-brand"
                   className="block text-sm font-medium mb-1"
-                />
+                >
+                  Nama Brand<span className="text-red-500 ml-2">*</span>
+                </Labels>
                 <Inputs
                   type="text"
                   placeholder="Masukan nama brand"
                   className="w-full border rounded px-2 py-1"
-                  onChange={(e) => setValue(e.target.value)}
+                  onChange={(e) => setNamaBrand(e.target.value)}
                 />
               </div>
               <div>
                 <Labels
-                  text="Brand Valuation"
                   htmlFor="brand-valuation"
                   className="block text-sm font-medium mb-1"
-                />
+                >
+                  Brand Valuation<span className="text-red-500 ml-2">*</span>
+                </Labels>
                 <Inputs
                   type="text"
                   placeholder="Masukan brand valuation"
                   className="w-full border rounded px-2 py-1"
-                  onChange={(e) => setValue(e.target.value)}
+                  onChange={(e) => setBrandValuation(e.target.value)}
                 />
               </div>
 
               <div>
                 <Labels
-                  text="Nama Pemegang HAKI"
                   htmlFor="nama-pemegang-haki"
                   className="block text-sm font-medium mb-1"
-                />
-                <Inputs
-                  type="text"
-                  placeholder="Pilih nama pemegang HAKI"
-                  className="w-full border rounded px-2 py-1"
-                  onChange={(e) => setValue(e.target.value)}
-                />
+                >
+                  Nama Pemegang HAKI<span className="text-red-500 ml-2">*</span>
+                </Labels>
+                <Select
+                  onValueChange={(val) => setNamaPemegangHaki(val)}
+                  value={namaPemegangHaki}
+                >
+                  <SelectTrigger className="w-full border rounded px-2 py-1">
+                    <SelectValue placeholder="Pilih nama pemegang HAKI" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pemegangHaki.map((nama) => (
+                      <SelectItem key={nama.value} value={nama.value}>
+                        {nama.value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </DialogHeader>
           <DialogFooter className="p-4">
             <DialogClose asChild>
-              <div className="space-x-2">
-                <Buttons
-                  variant="defaultSecond"
-                  size="sm"
-                  onClick={() => handleCancel()}
-                  className="w-20 p-2"
-                >
-                  Batal
-                </Buttons>
-                <Buttons
-                  variant="default"
-                  size="sm"
-                  onClick={() => handleSimpan()}
-                  className="w-40 text-white p-2"
-                >
-                  Simpan Perubahan
-                </Buttons>
-              </div>
+              <Buttons
+                variant="defaultSecond"
+                size="sm"
+                onClick={() => handleCancelTambahData()}
+                className="w-20 p-2"
+              >
+                Batal
+              </Buttons>
             </DialogClose>
+            <Buttons
+              variant="default"
+              size="sm"
+              disabled={!isFormValid}
+              onClick={() => handleSimpanTambahData()}
+              className="w-40 ml-2 p-2"
+            >
+              Simpan Perubahan
+            </Buttons>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* DROPDOWN SHOW ENTRIES */}
+      <div className="w-full flex justify-between px-8">
+        <div className="flex items-center gap-2 px-4 py-3">
+          <span>Show</span>
+
+          <select
+            className="border rounded-md px-2 py-1 bg-white"
+            value={perPage}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+              const value = Number(e.target.value);
+              setPerPage(value);
+              setCurrentPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+          </select>
+
+          <span>entries</span>
+        </div>
+
+        {/* PAGINATION */}
+        <div className="flex justify-center py-4">
+          <Pagination>
+            <PaginationContent>
+              {/* PREVIOUS */}
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={() => !isFirstPage && setCurrentPage((p) => p - 1)}
+                  className={
+                    isFirstPage ? "pointer-events-none opacity-40" : ""
+                  }
+                />
+              </PaginationItem>
+
+              {/* NOMOR HALAMAN - HANYA TAMPIL HALAMAN SAAT INI */}
+              <PaginationItem className="rounded-lg text-white text-sm bg-[#006694] text-center px-3 py-2">
+                {currentPage}
+              </PaginationItem>
+
+              {/* NEXT */}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={() => !isLastPage && setCurrentPage((p) => p + 1)}
+                  className={isLastPage ? "pointer-events-none opacity-40" : ""}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      </div>
     </>
   );
 };
