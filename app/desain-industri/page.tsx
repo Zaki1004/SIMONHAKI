@@ -405,7 +405,7 @@ const DesainIndustriPage = () => {
                       open={showEditDesainIndustri}
                       onOpenChange={setShowEditDesainIndustri}
                     >
-                      <DialogContent className="sm:max-w-[788px] h-[476px] p-0">
+                      <DialogContent className="sm:max-w-[788px] h-[430px] p-0">
                         <DialogHeader>
                           <DialogTitle className="bg-[#064263] text-white rounded-t-lg">
                             Edit Desain Industri
