@@ -1,20 +1,14 @@
+import { BellDot, XIcon } from "lucide-react";
 import Image from "next/image";
-import React from "react";
 import {
   Dialog,
   DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { Button } from "../ui/button";
-import Labels from "../atoms/labels";
-import { Input } from "../ui/input";
-import { BellDot, XIcon } from "lucide-react";
 
 const NavigationBar = () => {
   return (
