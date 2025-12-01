@@ -6,6 +6,7 @@ import Labels from "@/components/atoms/labels";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
+import Swal from "sweetalert2";
 import {
   Dialog,
   DialogClose,
@@ -51,6 +52,9 @@ import {
 import { Popover, PopoverTrigger } from "@radix-ui/react-popover";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import {
+  ArrowDownWideNarrow,
+  ArrowUpDown,
+  ArrowUpWideNarrow,
   ChevronDownIcon,
   MoreHorizontalIcon,
   Plus,
@@ -60,17 +64,20 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import Api from "@/services/api";
 
 type DataMerksProps = {
-  etiketMerk: string;
+  id: string;
+  etiket: string;
+  nomorPermohonan: string;
+  nomorPendaftaran: string;
+  idStatus: string;
   status: string;
-  noPermohonan: string;
-  noPendaftaran: string;
   linkPDKI: string;
-  tglBerakhirPerlindungan: Date | undefined;
+  tanggalBerakhirPerlindungan: string;
   sisaWaktuPerlindungan: string;
   statusPembaruan: string;
-  pemegangHAKI: string;
+  namaPemegangHaki: string;
 };
 
 interface Status {
@@ -82,10 +89,12 @@ interface UpdateStatusPembaruanProps {
   label: string;
   code: string;
 }
-interface Nama {
-  value: string;
-  code: string;
+interface PemegangHAKIProps {
+  nama: string;
+  id: string;
 }
+
+type SortField = keyof DataMerksProps | null;
 
 const MerkPage = () => {
   const [showEditMerk, setShowEditMerk] = useState(false);
@@ -96,11 +105,13 @@ const MerkPage = () => {
   const [value, setValue] = useState("");
   const [nomorPermohonan, setNomorPermohonan] = useState("");
   const [nomorPendaftaran, setNomorPendaftaran] = useState("");
-  const [tglBerakhirPerlindungan, setTglBerakhirPerlindungan] = useState<
-    Date | undefined
-  >(undefined);
+  const [tanggalBerakhirPerlindungan, setTanggalBerakhirPerlindungan] =
+    useState("");
   const [linkPdki, setLinkPdki] = useState("");
   const [namaPemegangHaki, setNamaPemegangHaki] = useState("");
+  const [pemegangHakiList, setPemegangHakiList] = useState<PemegangHAKIProps[]>(
+    []
+  );
   const [statusTambahData, setStatusTambahData] = useState("");
   const [updateStatusPembaruan, setUpdateStatusPembaruan] = useState("");
   const [fileEtiketMerk, setFileEtiketMerk] = useState<File | null>(null);
@@ -111,22 +122,170 @@ const MerkPage = () => {
   const [openDatePicker, setOpenDatePicker] = useState(false);
   const [perPage, setPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalData, setTotalData] = useState(0);
+  const [totalPage, setTotalPage] = useState(0);
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [selectedRow, setSelectedRow] = useState<DataMerksProps | null>(null);
+  const [dataTableMerk, setDataTableMerk] = useState<DataMerksProps[]>([]);
+  const [loadingPemegangHaki, setLoadingPemegangHaki] = useState(false);
+
+  const [sortConfig, setSortConfig] = useState<{
+    key: SortField;
+    direction: "asc" | "desc";
+  }>({
+    key: null,
+    direction: "asc",
+  });
+
+  const handleSort = (key: any) => {
+    let direction: "asc" | "desc" = "asc";
+
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const handleEdit = (row: DataMerksProps) => {
+    // simpan row yang dipilih (opsional)
+    setSelectedRow(row);
+    // autofill semua input
+    setNomorPermohonan(row.nomorPermohonan);
+    setNomorPendaftaran(row.nomorPendaftaran);
+    setStatusTambahData(row.status);
+    setLinkPdki(row.linkPDKI);
+    setNamaPemegangHaki(row.namaPemegangHaki);
+
+    // tanggal → ubah ke Date()
+    setTanggalBerakhirPerlindungan("");
+
+    // file (biasanya kosong kecuali kamu simpan nama file)
+    setFileEtiketMerk(null);
+
+    // buka dialog
+    setShowEditMerk(true);
+  };
 
   const isFormValid =
     nomorPermohonan &&
     nomorPendaftaran &&
-    tglBerakhirPerlindungan &&
+    tanggalBerakhirPerlindungan &&
     linkPdki &&
     namaPemegangHaki &&
     statusTambahData &&
     selectedFile;
 
+  const resetForm = () => {
+    setNomorPermohonan("");
+    setNomorPendaftaran("");
+    setStatusTambahData("");
+    setLinkPdki("");
+    setNamaPemegangHaki("");
+    setTanggalBerakhirPerlindungan("");
+    setSelectedFile(null);
+    setFileEtiketMerk(null);
+    setSelectedRow(null);
+  };
+
+  const hitungSisaWaktu = (tanggal: string) => {
+    if (!tanggal) return "-";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expDate = new Date(tanggal);
+    expDate.setHours(0, 0, 0, 0);
+    // 2. Jika sudah kadaluarsa
+    if (expDate < today) {
+      return "Sisa waktu perlindungan habis";
+    }
+    // 3. Hitung selisih tahun, bulan, hari
+    let years = expDate.getFullYear() - today.getFullYear();
+    let months = expDate.getMonth() - today.getMonth();
+    let days = expDate.getDate() - today.getDate();
+    // Koreksi jika hari negatif
+    if (days < 0) {
+      months--;
+      const lastMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      days += lastMonth.getDate();
+    }
+    // Koreksi jika bulan negatif
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+    // Format output
+    const parts = [];
+    if (years > 0) parts.push(`${years} tahun`);
+    if (months > 0) parts.push(`${months} bulan`);
+    if (days > 0) parts.push(`${days} hari`);
+
+    return parts.length > 0 ? parts.join(" ") : "Sisa waktu perlindungan habis";
+  };
+
+  const fetchPemegangHaki = async () => {
+    setLoadingPemegangHaki(true);
+    try {
+      const response = await Api.get("/pemegang-haki/getAll");
+      const result = response.data?.data;
+      console.log(response, Array.isArray(result), result);
+      setPemegangHakiList(Array.isArray(result) ? result : []);
+      console.log("Data yang akan di-set:", result);
+    } catch (error) {
+      console.error("Error fetching pemegang HAKI:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Gagal mengambil data pemegang HAKI",
+      });
+    } finally {
+    }
+  };
+
+  const fetchDataMerk = async () => {
+    try {
+      const response = await Api.get(
+        `/merk?search=${encodeURIComponent(
+          search
+        )}&page=${currentPage}&limit=${perPage}`
+      );
+      const result = response.data?.data?.data;
+      const totalData = response.data?.data?.totalData || 0;
+      const totalPage =
+        totalData && perPage ? Math.ceil(totalData / perPage) : 1;
+
+      const mappedData = Array.isArray(result)
+        ? result.map((item: any) => ({
+            ...item,
+            sisaWaktuPerlindungan: item.tanggalBerakhirPerlindungan
+              ? hitungSisaWaktu(item.tanggalBerakhirPerlindungan)
+              : "-",
+          }))
+        : [];
+
+      setDataTableMerk(mappedData);
+      setTotalData(totalData);
+      setTotalPage(totalPage);
+    } catch (error) {
+      console.error("Error fetching merk data", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Gagal mengambil data merk",
+      });
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => setProgress(100), 500);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    fetchDataMerk();
+    fetchPemegangHaki();
+  }, [search, currentPage, perPage]);
 
   const validateAndSetFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -134,8 +293,8 @@ const MerkPage = () => {
     setLoadingUpload(true); // ⬅️ loading dulu
     // Optional: kasih delay dikit agar loading terlihat
     await new Promise((r) => setTimeout(r, 300));
-    // 1. Validasi ukuran maksimal 200KB
-    const MAX_SIZE = 200 * 1024;
+    // 1. Validasi ukuran maksimal 2MB
+    const MAX_SIZE = 200 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       setLoadingUpload(false);
       alert("Ukuran Maksimal Hanya 200KB");
@@ -174,37 +333,119 @@ const MerkPage = () => {
     router.push("/merk");
   };
 
-  const handleSimpanTambahData = () => {
-    const newData: DataMerksProps = {
-      etiketMerk: selectedFile
-        ? URL.createObjectURL(selectedFile)
-        : "/logo/image 1.svg",
-      status: statusTambahData || "Didaftar",
-      noPermohonan: nomorPermohonan || `J${Date.now()}`,
-      noPendaftaran: nomorPendaftaran || "",
-      linkPDKI: linkPdki || "Buka Link",
-      tglBerakhirPerlindungan: tglBerakhirPerlindungan,
-      sisaWaktuPerlindungan: tglBerakhirPerlindungan
-        ? isKadaluarsa(tglBerakhirPerlindungan)
-          ? "Sisa Waktu Perlindungan Habis"
-          : "Sisa Waktu Perlindungan Tersedia"
-        : "-",
-      statusPembaruan: "Tidak Diperpanjang",
-      pemegangHAKI: namaPemegangHaki || "",
-    };
-
-    setDataTableMerk((prev) => [...prev, newData]);
-
+  const handleSimpanTambahData = async () => {
+    if (
+      !nomorPermohonan ||
+      !nomorPendaftaran ||
+      !tanggalBerakhirPerlindungan ||
+      !linkPdki ||
+      !namaPemegangHaki ||
+      !statusTambahData ||
+      !selectedFile
+    ) {
+      Swal.fire({
+        icon: "warning",
+        title: "Peringatan",
+        text: "Lengkapi semua form terlebih dahulu.",
+      });
+      return;
+    }
     setShowTambahData(false);
+    try {
+      const result = await Swal.fire({
+        icon: "question",
+        title: "Apakah data sudah benar?",
+        text: "Pastikan semua informasi sudah benar sebelum menambahkan data.",
+        showCancelButton: true,
+        confirmButtonText: "Ya, tambah data",
+        cancelButtonText: "Batal",
+      });
+      // Jika user batal, buka kembali dialog
+      if (result.isDismissed) {
+        setShowTambahData(true);
+        return;
+      }
+      // Step 3: Jika user konfirmasi, kirim data ke API
+      if (result.isConfirmed) {
+        setLoadingUpload(true);
+        const formData = new FormData();
+        formData.append("nomorPermohonan", nomorPermohonan);
+        formData.append("nomorPendaftaran", nomorPendaftaran);
+        formData.append("status", statusTambahData);
+        formData.append(
+          "tanggalBerakhirPerlindungan",
+          tanggalBerakhirPerlindungan
+        );
+        formData.append("linkPDKI", linkPdki);
+        formData.append("pemegangHAKI", namaPemegangHaki);
+        if (selectedFile) {
+          formData.append("etiket", selectedFile);
+        }
 
-    setNomorPermohonan("");
-    setNomorPendaftaran("");
-    setTglBerakhirPerlindungan(undefined);
-    setLinkPdki("");
-    setNamaPemegangHaki("");
-    setStatusTambahData("");
-    setSelectedFile(null);
-    setFileEtiketMerk(null);
+        try {
+          const response = await Api.post("/merk", formData, {});
+
+          const newData = response.data?.data;
+          resetForm();
+          await fetchDataMerk();
+
+          await Swal.fire({
+            icon: "success",
+            title: "Berhasil Ditambahkan!",
+            text: `Data merk dengan ID ${newData?.id} berhasil ditambahkan.`,
+            confirmButtonText: "Oke",
+          });
+        } catch (err: any) {
+          let message = "Terjadi kesalahan saat menyimpan data.";
+          if (err.response) {
+            switch (err.response.status) {
+              case 400:
+                message =
+                  err.response.data?.message ||
+                  "Data yang diinputkan tidak valid atau sudah ada";
+                break;
+              case 401:
+                message = "Sesi Anda telah berakhir. Silakan login kembali.";
+                break;
+              case 403:
+                message = "Anda tidak memiliki akses untuk menambahkan data.";
+                break;
+              case 405:
+                message =
+                  err.response.data?.message || "Data tidak sesuai format";
+                break;
+              case 500:
+                message = err.response.data?.message || "Server Error (500)";
+                break;
+              default:
+                message = err.response.data?.message || message;
+            }
+          }
+
+          await Swal.fire({
+            icon: "error",
+            title: "Gagal",
+            text: message,
+          });
+
+          // Buka kembali dialog jika gagal
+          setShowTambahData(true);
+        } finally {
+          setLoadingUpload(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error dalam proses tambah data:", error);
+
+      await Swal.fire({
+        icon: "error",
+        title: "ERROR",
+        text: "Terjadi kesalahan yang tidak terduga.",
+        confirmButtonText: "Oke",
+      });
+
+      setShowTambahData(true);
+    }
   };
 
   const handleHapusImages = () => {
@@ -216,9 +457,33 @@ const MerkPage = () => {
   };
 
   const handleSimpanEditMerk = () => {
+    if (!selectedRow) return;
+
+    const updatedData = dataTableMerk.map((item) =>
+      item.nomorPermohonan === selectedRow.nomorPermohonan
+        ? {
+            ...item,
+            status: statusTambahData?.trim() || item.status,
+            nomorPermohonan: nomorPermohonan?.trim() || item.nomorPermohonan,
+            nomorPendaftaran: nomorPendaftaran?.trim() || item.nomorPendaftaran,
+            linkPDKI: linkPdki?.trim() || item.linkPDKI,
+            tanggalBerakhirPerlindungan:
+              tanggalBerakhirPerlindungan || item.tanggalBerakhirPerlindungan,
+            pemegangHAKI: namaPemegangHaki.trim() || item.namaPemegangHaki,
+          }
+        : item
+    );
+
+    setDataTableMerk(updatedData);
     setShowEditMerk(false);
-    router.push("/merk");
+
+    Swal.fire({
+      icon: "success",
+      title: "Berhasil",
+      text: "Data berhasil diperbarui!",
+    });
   };
+
   const handleCancelUpdateMerk = () => {
     router.push("/merk");
   };
@@ -232,21 +497,66 @@ const MerkPage = () => {
     router.push("/merk");
   };
 
-  const handleSimpanHapusMerk = () => {
+  const handleSimpanHapusMerk = async () => {
+    if (!selectedRow) return;
+
+    // Tutup dialog dulu
     setShowHapusMerk(false);
-    router.push("/merk");
+
+    try {
+      // Konfirmasi penghapusan
+      const result = await Swal.fire({
+        icon: "warning",
+        title: "Konfirmasi Hapus",
+        text: `Apakah Anda yakin ingin menghapus merk dengan nomor permohonan ${selectedRow.nomorPermohonan}?`,
+        showCancelButton: true,
+        confirmButtonText: "Ya, Hapus",
+        cancelButtonText: "Batal",
+        confirmButtonColor: "#DC3545",
+        cancelButtonColor: "#6c757d",
+      });
+
+      // Jika user membatalkan
+      if (result.isDismissed) {
+        setShowHapusMerk(true);
+        return;
+      }
+
+      // Jika user mengkonfirmasi penghapusan
+      if (result.isConfirmed) {
+        // Soft delete: filter data yang akan dihapus
+        const updatedData = dataTableMerk.filter(
+          (item) => item.nomorPermohonan !== selectedRow.nomorPermohonan
+        );
+
+        console.log("Data setelah soft delete:", updatedData);
+
+        // Update state table
+        setDataTableMerk(updatedData);
+
+        // Reset selected row
+        setSelectedRow(null);
+
+        // Tampilkan notifikasi berhasil
+        await Swal.fire({
+          icon: "success",
+          title: "Berhasil Dihapus!",
+          text: "Data merk berhasil dihapus dari tabel.",
+          confirmButtonText: "Oke",
+          timer: 2000,
+        });
+      }
+    } catch (error) {
+      console.error("Error saat menghapus:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Gagal",
+        text: "Terjadi kesalahan saat menghapus data.",
+        confirmButtonText: "Oke",
+      });
+      setShowHapusMerk(true);
+    }
   };
-
-  // const hitungSisaWaktu = (tanggal: Date | number | null) => {
-  //   if (!tanggal) return "-";
-
-  //   const today = new Date();
-  //   const end = new Date(tanggal);
-  //   const diff = end.getTime() - today.getTime();
-
-  //   const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-  //   return `${days} hari`;
-  // };
 
   const statusTambah: Status[] = [
     { value: "didaftar", label: "Didaftar" },
@@ -259,12 +569,7 @@ const MerkPage = () => {
     { value: "selesai", label: "Selesai", code: "SLS" },
   ];
 
-  const pemegangHaki: Nama[] = [
-    { value: "Atiqa Zaviera", code: "AZA" },
-    { value: "Zaviera Atiqa", code: "ZAA" },
-  ];
-
-  const isKadaluarsa = (tanggal: Date | undefined) => {
+  const isKadaluarsa = (tanggal: string) => {
     if (!tanggal) return false;
     const expDate = new Date(tanggal);
     expDate.setHours(0, 0, 0, 0);
@@ -273,76 +578,68 @@ const MerkPage = () => {
     return expDate < today;
   };
 
-  const parseDMY = (str: string): Date => {
-    const [d, m, y] = str.split("-").map(Number);
-    return new Date(y, m - 1, d);
-  };
-
-  const formatToDMY = (tanggal: Date | undefined) => {
+  const formatToDMY = (tanggal: string) => {
     if (!tanggal) return "-";
-    const day = String(tanggal.getDate()).padStart(2, "0");
-    const month = String(tanggal.getMonth() + 1).padStart(2, "0");
-    const year = tanggal.getFullYear();
+    const date = new Date(tanggal);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
     return `${day}-${month}-${year}`;
   };
 
-  const [dataTableMerk, setDataTableMerk] = useState<DataMerksProps[]>([
-    {
-      etiketMerk: "/logo/image 1.svg",
-      status: "Didaftar",
-      noPermohonan: "J002014046345",
-      noPendaftaran: "IDM000550171",
-      linkPDKI: "Buka Link",
-      tglBerakhirPerlindungan: parseDMY("10-10-2024"),
-      sisaWaktuPerlindungan: "Sisa Waktu Perlindungan Habis",
-      statusPembaruan: "Tidak Diperpanjang",
-      pemegangHAKI: "Atiqa Zaviera",
-    },
-    {
-      etiketMerk: "/logo/image 1.svg",
-      status: "Selesai",
-      noPermohonan: "J0020140463456789",
-      noPendaftaran: "IDM000550171",
-      linkPDKI: "Buka Link",
-      tglBerakhirPerlindungan: parseDMY("19-11-2026"),
-      sisaWaktuPerlindungan: "Sisa Waktu Perlindungan Tersedia",
-      statusPembaruan: "Tidak Diperpanjang",
-      pemegangHAKI: "Atiqa Zaviera",
-    },
-    {
-      etiketMerk: "/logo/image 1.svg",
-      status: "Selesai",
-      noPermohonan: "J00201404634567777",
-      noPendaftaran: "IDM000550171",
-      linkPDKI: "Buka Link",
-      tglBerakhirPerlindungan: parseDMY("18-07-2025"),
-      sisaWaktuPerlindungan: "Sisa Waktu Perlindungan Habis",
-      statusPembaruan: "Tidak Diperpanjang",
-      pemegangHAKI: "Atiqa Zaviera",
-    },
-    {
-      etiketMerk: "/logo/image 1.svg",
-      status: "Selesai",
-      noPermohonan: "J00201404634568889",
-      noPendaftaran: "IDM000550171",
-      linkPDKI: "Buka Link",
-      tglBerakhirPerlindungan: parseDMY("19-11-2027"),
-      sisaWaktuPerlindungan: "Sisa Waktu Perlindungan Tersedia",
-      statusPembaruan: "Tidak Diperpanjang",
-      pemegangHAKI: "Atiqa Zaviera",
-    },
-  ]);
+  const sortedData = useMemo(() => {
+    if (!sortConfig.key) return dataTableMerk;
 
-  // Hitung total halaman
-  const totalPages = Math.ceil(dataTableMerk.length / perPage);
-  // Disable prev/next
+    return [...dataTableMerk].sort((a, b) => {
+      const x = a[sortConfig.key!];
+      const y = b[sortConfig.key!];
+
+      // 1️⃣ Handle status (tipe Status)
+      if (sortConfig.key === "status") {
+        const labelX =
+          typeof x === "object" && x !== null && "label" in x
+            ? (x as any).label ?? ""
+            : typeof x === "string"
+            ? x
+            : "";
+        const labelY =
+          typeof y === "object" && y !== null && "label" in y
+            ? (y as any).label ?? ""
+            : typeof y === "string"
+            ? y
+            : "";
+
+        return sortConfig.direction === "asc"
+          ? labelX.localeCompare(labelY)
+          : labelY.localeCompare(labelX);
+      }
+
+      // handle tanggal
+      if (sortConfig.key === "tanggalBerakhirPerlindungan") {
+        const dateX = x ? new Date(x as string).getTime() : 0;
+        const dateY = y ? new Date(y as string).getTime() : 0;
+
+        return sortConfig.direction === "asc" ? dateX - dateY : dateY - dateX;
+      }
+
+      // handle string
+      if (typeof x === "string" && typeof y === "string") {
+        return sortConfig.direction === "asc"
+          ? x.localeCompare(y)
+          : y.localeCompare(x);
+      }
+
+      // handle number (kalau ada)
+      if (typeof x === "number" && typeof y === "number") {
+        return sortConfig.direction === "asc" ? x - y : y - x;
+      }
+
+      return 0;
+    });
+  }, [sortConfig, dataTableMerk]);
+
   const isFirstPage = currentPage === 1;
-  const isLastPage = currentPage === totalPages || totalPages === 0;
-  // Data yang ditampilkan sesuai halaman
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return dataTableMerk.slice(start, start + perPage);
-  }, [currentPage, perPage, dataTableMerk]);
+  const isLastPage = currentPage === totalPage || totalPage === 0;
 
   return (
     <>
@@ -361,7 +658,10 @@ const MerkPage = () => {
             variant="default"
             size="sm"
             className="ml-2 "
-            onClick={() => setShowTambahData(true)}
+            onClick={() => {
+              resetForm();
+              setShowTambahData(true);
+            }}
           >
             <Plus /> Tambah Data
           </Buttons>
@@ -383,52 +683,218 @@ const MerkPage = () => {
       </div>
 
       <Table className="bg-white m-5 rounded-xl">
+        {/* border-separate border-spacing-0 */}
         <TableHeader>
           <TableRow>
             <TableHead>Etiket Merk</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>No Permohonan</TableHead>
-            <TableHead>No Pendaftaran</TableHead>
+
+            <TableHead>
+              <Buttons
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("status");
+                }}
+                className="flex items-center"
+              >
+                Status
+                <span>
+                  {sortConfig.key !== "status" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+
+            <TableHead>
+              <Buttons
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("nomorPermohonan");
+                }}
+                className="flex items-center"
+              >
+                No Permohonan
+                <span>
+                  {sortConfig.key !== "nomorPermohonan" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+
+            <TableHead>
+              <Buttons
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("nomorPendaftaran");
+                }}
+                className="flex items-center"
+              >
+                No Pendaftaran
+                <span>
+                  {sortConfig.key !== "nomorPendaftaran" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+
             <TableHead>Link PDKI</TableHead>
-            <TableHead>Tgl Berakhir Perlindungan</TableHead>
-            <TableHead>Sisa Waktu Perlindungan</TableHead>
-            <TableHead>Status Pembaruan</TableHead>
-            <TableHead>Pemegang HAKI</TableHead>
+
+            <TableHead>
+              <Buttons
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("tanggalBerakhirPerlindungan");
+                }}
+                className="flex items-center"
+              >
+                Tgl Berakhir Perlindungan
+                <span>
+                  {sortConfig.key !== "tanggalBerakhirPerlindungan" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+
+            <TableHead>
+              <Buttons
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("sisaWaktuPerlindungan");
+                }}
+                className="flex items-center"
+              >
+                Sisa Waktu Perlindungan
+                <span>
+                  {sortConfig.key !== "sisaWaktuPerlindungan" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+
+            <TableHead>
+              <Buttons
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("statusPembaruan");
+                }}
+                className="flex items-center"
+              >
+                Status Pembaruan
+                <span>
+                  {sortConfig.key !== "statusPembaruan" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+
+            <TableHead>
+              <Buttons
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("pemegangHAKI");
+                }}
+                className="flex items-center"
+              >
+                Pemegang HAKI
+                <span>
+                  {sortConfig.key !== "namaPemegangHaki" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+
             <TableHead>Action</TableHead>
           </TableRow>
         </TableHeader>
 
         <TableBody>
-          {paginatedData.length === 0 ? (
+          {sortedData.length === 0 ? (
             <TableRow>
               <TableCell colSpan={10} className="text-center py-8">
                 Tidak ada data
               </TableCell>
             </TableRow>
           ) : (
-            paginatedData.map((item) => {
+            sortedData.map((item, index) => {
+              // const isLastRow = index === paginatedData.length - 1;
               const {
-                etiketMerk,
+                etiket,
                 status,
-                noPermohonan,
-                noPendaftaran,
+                nomorPermohonan,
+                nomorPendaftaran,
                 linkPDKI,
-                tglBerakhirPerlindungan,
+                tanggalBerakhirPerlindungan,
                 sisaWaktuPerlindungan,
                 statusPembaruan,
-                pemegangHAKI,
+                namaPemegangHaki,
               } = item;
 
               return (
                 <TableRow
-                  key={noPermohonan}
+                  key={nomorPermohonan}
                   className={
-                    showKadaluarsa && isKadaluarsa(tglBerakhirPerlindungan)
+                    showKadaluarsa && isKadaluarsa(tanggalBerakhirPerlindungan)
                       ? "border-l-4 border-l-[#DC3545] bg-[#DC35451A]"
                       : ""
                   }
                 >
-                  <TableCell>
+                  <TableCell
+                    className={`  ${
+                      showKadaluarsa &&
+                      isKadaluarsa(tanggalBerakhirPerlindungan)
+                        ? "border-l-4 border-l-[#DC3545]"
+                        : ""
+                    }`}
+                    // ${isLastRow ? "rounded-bl-xl" : ""}
+                  >
                     <Image
                       src="/logo/image 1.svg"
                       alt="E-Tiket Merk"
@@ -437,29 +903,29 @@ const MerkPage = () => {
                     />
                   </TableCell>
                   <TableCell>{status}</TableCell>
-                  <TableCell>{noPermohonan}</TableCell>
-                  <TableCell>{noPendaftaran}</TableCell>
+                  <TableCell>{nomorPermohonan}</TableCell>
+                  <TableCell>{nomorPendaftaran}</TableCell>
                   <TableCell>
                     <Link
                       href="/indikasi-geografis"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:underline"
-                      aria-label={`Buka PDKI untuk ${etiketMerk}`}
+                      aria-label={`Buka PDKI untuk ${etiket}`}
                     >
                       {linkPDKI}
                     </Link>
                   </TableCell>
                   <TableCell>
-                    {tglBerakhirPerlindungan
-                      ? formatToDMY(tglBerakhirPerlindungan)
+                    {tanggalBerakhirPerlindungan
+                      ? formatToDMY(tanggalBerakhirPerlindungan)
                       : "-"}
                   </TableCell>
                   <TableCell className="max-w-xs truncate">
                     {sisaWaktuPerlindungan}
                   </TableCell>
                   <TableCell>{statusPembaruan}</TableCell>
-                  <TableCell>{pemegangHAKI}</TableCell>
+                  <TableCell>{namaPemegangHaki}</TableCell>
                   <TableCell>
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
@@ -474,7 +940,7 @@ const MerkPage = () => {
                       <DropdownMenuContent className="w-40" align="end">
                         <DropdownMenuGroup className="space-y-1">
                           <DropdownMenuItem
-                            onSelect={() => setShowEditMerk(true)}
+                            onSelect={() => handleEdit(item)}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
                             <div className="text-sm hover:font-semibold flex items-center justify-start">
@@ -529,166 +995,185 @@ const MerkPage = () => {
                           <DialogTitle className="bg-[#064263] text-white px-4 py-8 rounded-t-lg">
                             Edit Merk
                           </DialogTitle>
-                          <div className="grid grid-cols-2 grid-rows-4 gap-4 p-4">
-                            <div>
-                              <Labels
-                                htmlFor="etiket-merk"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                E-Tiket Merk
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Inputs
-                                type="text"
-                                placeholder="121"
-                                className="w-full border rounded px-2 py-1"
-                                onChange={(e) => setValue(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Labels
-                                htmlFor="status"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Status
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Select
-                                onValueChange={(val) =>
-                                  setStatusTambahData(val)
-                                }
-                                value={statusTambahData}
-                              >
-                                <SelectTrigger className="w-full border rounded px-2 py-1">
-                                  <SelectValue placeholder="Pilih status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {statusTambah.map((update) => (
-                                    <SelectItem
-                                      key={update.value}
-                                      value={update.value}
-                                    >
-                                      {update.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div>
-                              <Labels
-                                htmlFor="no-permohonan"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Nomor Permohonan
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Inputs
-                                type="text"
-                                placeholder="J002014046345"
-                                className="w-full border rounded px-2 py-1"
-                                onChange={(e) => setValue(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Labels
-                                htmlFor="no-pendaftaran"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Nomor Pendaftaran
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Inputs
-                                type="text"
-                                placeholder="IDM000550171"
-                                className="w-full border rounded px-2 py-1"
-                                onChange={(e) => setValue(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Labels
-                                htmlFor="tanggal-berakhir-perlindungan"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Tanggal Berakhir Perlindungan
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Popover
-                                open={openDatePicker}
-                                onOpenChange={setOpenDatePicker}
-                              >
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    className="w-full justify-between font-normal"
-                                  >
-                                    {tglBerakhirPerlindungan
-                                      ? tglBerakhirPerlindungan.toLocaleDateString()
-                                      : "Masukkan tanggal berakhir perlindungan"}
-                                    <ChevronDownIcon className="ml-2 h-4 w-4 opacity-50" />
-                                  </Button>
-                                </PopoverTrigger>
-
-                                <PopoverContent
-                                  className="w-auto p-0"
-                                  align="start"
-                                >
-                                  <Calendar
-                                    mode="single"
-                                    selected={tglBerakhirPerlindungan}
-                                    captionLayout="dropdown"
-                                    onSelect={(date) => {
-                                      setTglBerakhirPerlindungan(date);
-                                      setOpenDatePicker(false);
-                                    }}
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                            </div>
-                            <div>
-                              <Labels
-                                htmlFor="link-pdki"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Link PDKI
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Inputs
-                                type="text"
-                                placeholder="https://simonhaki.pnm.co.id"
-                                className="w-full border rounded px-2 py-1"
-                                onChange={(e) => setValue(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Labels
-                                htmlFor="nama-pemegang-haki"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Nama Pemegang HAKI
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Select
-                                onValueChange={(val) => setValue(val)}
-                                value={value}
-                              >
-                                <SelectTrigger className="w-full border rounded px-2 py-1">
-                                  <SelectValue placeholder="Nama pemegang HAKI" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {statusTambah.map((update) => (
-                                    <SelectItem
-                                      key={update.value}
-                                      value={update.value}
-                                    >
-                                      {update.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
                         </DialogHeader>
+                        <div className="grid grid-cols-2 grid-rows-4 gap-4 p-4">
+                          <div>
+                            <Labels
+                              htmlFor="etiket-merk"
+                              className="block text-sm font-medium mb-1"
+                            >
+                              E-Tiket Merk
+                              <span className="text-red-500 ml-1">*</span>
+                            </Labels>
+                            <Inputs
+                              type="text"
+                              placeholder="121"
+                              className="w-full border rounded px-2 py-1"
+                              value={value}
+                              onChange={(e) => setValue(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Labels
+                              htmlFor="status"
+                              className="block text-sm font-medium mb-1"
+                            >
+                              Status
+                              <span className="text-red-500 ml-1">*</span>
+                            </Labels>
+                            <Select
+                              onValueChange={(val) => setStatusTambahData(val)}
+                              value={statusTambahData}
+                            >
+                              <SelectTrigger className="w-full border rounded px-2 py-1">
+                                <SelectValue placeholder="Pilih status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {statusTambah.map((update) => (
+                                  <SelectItem
+                                    key={update.value}
+                                    value={update.value}
+                                  >
+                                    {update.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Labels
+                              htmlFor="no-permohonan"
+                              className="block text-sm font-medium mb-1"
+                            >
+                              Nomor Permohonan
+                              <span className="text-red-500 ml-1">*</span>
+                            </Labels>
+                            <Inputs
+                              type="text"
+                              placeholder="J002014046345"
+                              className="w-full border rounded px-2 py-1"
+                              value={nomorPermohonan}
+                              onChange={(e) =>
+                                setNomorPermohonan(e.target.value)
+                              }
+                            />
+                          </div>
+                          <div>
+                            <Labels
+                              htmlFor="no-pendaftaran"
+                              className="block text-sm font-medium mb-1"
+                            >
+                              Nomor Pendaftaran
+                              <span className="text-red-500 ml-1">*</span>
+                            </Labels>
+                            <Inputs
+                              type="text"
+                              placeholder="IDM000550171"
+                              className="w-full border rounded px-2 py-1"
+                              value={nomorPendaftaran}
+                              onChange={(e) =>
+                                setNomorPendaftaran(e.target.value)
+                              }
+                            />
+                          </div>
+                          <div>
+                            <Labels
+                              htmlFor="tanggal-berakhir-perlindungan"
+                              className="block text-sm font-medium mb-1"
+                            >
+                              Tanggal Berakhir Perlindungan
+                              <span className="text-red-500 ml-1">*</span>
+                            </Labels>
+                            <Popover
+                              open={openDatePicker}
+                              onOpenChange={setOpenDatePicker}
+                            >
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className="w-full justify-between font-normal"
+                                >
+                                  {tanggalBerakhirPerlindungan ||
+                                    "Masukkan tanggal berakhir perlindungan"}
+
+                                  <ChevronDownIcon className="ml-2 h-4 w-4 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+
+                              <PopoverContent
+                                className="w-auto p-0"
+                                align="start"
+                              >
+                                <Calendar
+                                  mode="single"
+                                  selected={
+                                    tanggalBerakhirPerlindungan
+                                      ? new Date(tanggalBerakhirPerlindungan)
+                                      : undefined
+                                  }
+                                  captionLayout="dropdown"
+                                  onSelect={(date) => {
+                                    if (date) {
+                                      setTanggalBerakhirPerlindungan(
+                                        date.toISOString().split("T")[0]
+                                      );
+                                    }
+                                    setOpenDatePicker(false);
+                                  }}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                          <div>
+                            <Labels
+                              htmlFor="link-pdki"
+                              className="block text-sm font-medium mb-1"
+                            >
+                              Link PDKI
+                              <span className="text-red-500 ml-1">*</span>
+                            </Labels>
+                            <Inputs
+                              type="text"
+                              placeholder="https://simonhaki.pnm.co.id"
+                              className="w-full border rounded px-2 py-1"
+                              value={linkPdki}
+                              onChange={(e) => setLinkPdki(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Labels
+                              htmlFor="nama-pemegang-haki"
+                              className="block text-sm font-medium mb-1"
+                            >
+                              Nama Pemegang HAKI
+                              <span className="text-red-500 ml-1">*</span>
+                            </Labels>
+                            <Select
+                              onValueChange={(val) => setNamaPemegangHaki(val)}
+                              value={namaPemegangHaki}
+                            >
+                              <SelectTrigger className="w-full border rounded px-2 py-1">
+                                <SelectValue placeholder="Nama Pemegang HAKI" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {pemegangHakiList &&
+                                pemegangHakiList.length > 0 ? (
+                                  pemegangHakiList.map((item) => (
+                                    <SelectItem key={item.id} value={item.nama}>
+                                      {item.nama}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="loading" disabled>
+                                    Loading...
+                                  </SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
                         <DialogFooter className="p-4">
                           <DialogClose asChild>
                             <Buttons
@@ -775,6 +1260,8 @@ const MerkPage = () => {
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
+
+                    {/* Dialog Hapus Merk */}
                     <Dialog
                       open={showHapusMerk}
                       onOpenChange={setShowHapusMerk}
@@ -835,61 +1322,6 @@ const MerkPage = () => {
           )}
         </TableBody>
       </Table>
-
-      {/* DROPDOWN SHOW ENTRIES */}
-      <div className="w-full flex justify-between px-8">
-        <div className="flex items-center gap-2 px-4 py-3">
-          <span>Show</span>
-
-          <select
-            className="border rounded-md px-2 py-1 bg-white"
-            value={perPage}
-            onChange={(e: ChangeEvent<HTMLSelectElement>) => {
-              const value = Number(e.target.value);
-              setPerPage(value);
-              setCurrentPage(1);
-            }}
-          >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-          </select>
-
-          <span>entries</span>
-        </div>
-
-        {/* PAGINATION */}
-        <div className="flex justify-center py-4">
-          <Pagination>
-            <PaginationContent>
-              {/* PREVIOUS */}
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={() => !isFirstPage && setCurrentPage((p) => p - 1)}
-                  className={
-                    isFirstPage ? "pointer-events-none opacity-40" : ""
-                  }
-                />
-              </PaginationItem>
-
-              {/* NOMOR HALAMAN - HANYA TAMPIL HALAMAN SAAT INI */}
-              <PaginationItem className="rounded-lg text-white text-sm bg-[#006694] text-center px-3 py-2">
-                {currentPage}
-              </PaginationItem>
-
-              {/* NEXT */}
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  onClick={() => !isLastPage && setCurrentPage((p) => p + 1)}
-                  className={isLastPage ? "pointer-events-none opacity-40" : ""}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
-      </div>
 
       {/* Dialog Tambah Data Merk */}
       <Dialog open={showTambahData} onOpenChange={setShowTambahData}>
@@ -966,9 +1398,9 @@ const MerkPage = () => {
                       variant="outline"
                       className="w-full justify-between font-normal"
                     >
-                      {tglBerakhirPerlindungan
-                        ? tglBerakhirPerlindungan.toLocaleDateString()
-                        : "Masukkan tanggal berakhir perlindungan"}
+                      {tanggalBerakhirPerlindungan ||
+                        "Masukkan tanggal berakhir perlindungan"}
+
                       <ChevronDownIcon className="ml-2 h-4 w-4 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -976,10 +1408,18 @@ const MerkPage = () => {
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={tglBerakhirPerlindungan}
+                      selected={
+                        tanggalBerakhirPerlindungan
+                          ? new Date(tanggalBerakhirPerlindungan)
+                          : undefined
+                      }
                       captionLayout="dropdown"
                       onSelect={(date) => {
-                        setTglBerakhirPerlindungan(date);
+                        if (date) {
+                          setTanggalBerakhirPerlindungan(
+                            date.toISOString().split("T")[0]
+                          );
+                        }
                         setOpenDatePicker(false);
                       }}
                     />
@@ -1016,11 +1456,17 @@ const MerkPage = () => {
                     <SelectValue placeholder="Pilih nama pemegang HAKI" />
                   </SelectTrigger>
                   <SelectContent>
-                    {pemegangHaki.map((nama) => (
-                      <SelectItem key={nama.value} value={nama.value}>
-                        {nama.value}
+                    {pemegangHakiList && pemegangHakiList.length > 0 ? (
+                      pemegangHakiList.map((item) => (
+                        <SelectItem key={item.id} value={item.nama}>
+                          {item.nama}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="loading" disabled>
+                        Loading...
                       </SelectItem>
-                    ))}
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -1141,7 +1587,7 @@ const MerkPage = () => {
                             or drag and drop here
                           </p>
                           <p className="text-gray-400 text-xs mt-2">
-                            Max File Size: 200KB (.png)
+                            Max File Size: 2MB (.png)
                           </p>
                         </div>
                       </>
@@ -1187,6 +1633,66 @@ const MerkPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* DROPDOWN SHOW ENTRIES */}
+      <div className="w-full flex justify-between px-8">
+        <div className="flex items-center gap-2 px-4 py-3">
+          <span>Show</span>
+
+          <select
+            className="border rounded-md px-2 py-1 bg-white"
+            value={perPage}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+              const value = Number(e.target.value);
+              setPerPage(value);
+              setCurrentPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+          </select>
+
+          <span>entries</span>
+        </div>
+
+        {/* PAGINATION */}
+        <div className="flex justify-center py-4">
+          <Pagination>
+            <PaginationContent>
+              {/* PREVIOUS */}
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={() => !isFirstPage && setCurrentPage((p) => p - 1)}
+                  className={
+                    isFirstPage ? "pointer-events-none opacity-40" : ""
+                  }
+                />
+              </PaginationItem>
+
+              {/* NOMOR HALAMAN - HANYA TAMPIL HALAMAN SAAT INI */}
+              <PaginationItem className="rounded-lg text-white text-sm bg-[#006694] text-center px-3 py-2">
+                {currentPage}
+              </PaginationItem>
+
+              {/* NEXT */}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (!isLastPage) {
+                      setCurrentPage((prev) => prev + 1);
+                    }
+                  }}
+                  className={isLastPage ? "pointer-events-none opacity-40" : ""}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      </div>
     </>
   );
 };
