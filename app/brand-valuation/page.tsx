@@ -4,8 +4,6 @@ import Buttons from "@/components/atoms/buttons";
 import Inputs from "@/components/atoms/inputs";
 import Labels from "@/components/atoms/labels";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -28,11 +26,6 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -53,14 +46,8 @@ import {
   DropdownMenuItem,
 } from "@radix-ui/react-dropdown-menu";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import {
-  ChevronDownIcon,
-  MoreHorizontalIcon,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { MoreHorizontalIcon, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, useMemo, useState } from "react";
 
