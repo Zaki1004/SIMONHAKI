@@ -6,7 +6,6 @@ import Labels from "@/components/atoms/labels";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
-import Swal from "sweetalert2";
 import {
   Dialog,
   DialogClose,
@@ -45,6 +44,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import Api from "@/services/api";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -64,7 +64,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import Api from "@/services/api";
+import Swal from "sweetalert2";
 
 type DataMerksProps = {
   id: string;
@@ -78,16 +78,12 @@ type DataMerksProps = {
   sisaWaktuPerlindungan: string;
   statusPembaruan: string;
   namaPemegangHaki: string;
+  idPemegangHaki: string;
 };
 
 interface Status {
-  value: string;
-  label: string;
-}
-interface UpdateStatusPembaruanProps {
-  value: string;
-  label: string;
-  code: string;
+  idStatus: string;
+  namaStatus: string;
 }
 interface PemegangHAKIProps {
   nama: string;
@@ -129,6 +125,8 @@ const MerkPage = () => {
   const [selectedRow, setSelectedRow] = useState<DataMerksProps | null>(null);
   const [dataTableMerk, setDataTableMerk] = useState<DataMerksProps[]>([]);
   const [loadingPemegangHaki, setLoadingPemegangHaki] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<Status | null>(null);
+  const [listStatus, setListStatus] = useState<Status[]>([]);
 
   const [sortConfig, setSortConfig] = useState<{
     key: SortField;
@@ -138,7 +136,7 @@ const MerkPage = () => {
     direction: "asc",
   });
 
-  const handleSort = (key: any) => {
+  const handleSort = (key: SortField) => {
     let direction: "asc" | "desc" = "asc";
 
     if (sortConfig.key === key && sortConfig.direction === "asc") {
@@ -227,7 +225,6 @@ const MerkPage = () => {
     try {
       const response = await Api.get("/pemegang-haki/getAll");
       const result = response.data?.data;
-      console.log(response, Array.isArray(result), result);
       setPemegangHakiList(Array.isArray(result) ? result : []);
       console.log("Data yang akan di-set:", result);
     } catch (error) {
@@ -244,28 +241,34 @@ const MerkPage = () => {
 
   const fetchDataMerk = async () => {
     try {
-      const response = await Api.get(
-        `/merk?search=${encodeURIComponent(
-          search
-        )}&page=${currentPage}&limit=${perPage}`
-      );
-      const result = response.data?.data?.data;
-      const totalData = response.data?.data?.totalData || 0;
+      const [resMerk, resStatus] = await Promise.all([
+        Api.get(
+          `/merk?search=${encodeURIComponent(
+            search
+          )}&page=${currentPage}&limit=${perPage}`
+        ),
+        Api.get(`/status-pembaruan`),
+      ]);
+
+      const result = resMerk.data?.data?.data;
+      const totalData = resMerk.data?.data?.totalData || 0;
       const totalPage =
         totalData && perPage ? Math.ceil(totalData / perPage) : 1;
 
       const mappedData = Array.isArray(result)
-        ? result.map((item: any) => ({
+        ? result.map((item: DataMerksProps) => ({
             ...item,
             sisaWaktuPerlindungan: item.tanggalBerakhirPerlindungan
               ? hitungSisaWaktu(item.tanggalBerakhirPerlindungan)
               : "-",
           }))
         : [];
+      const statusResult = resStatus.data?.data || [];
 
       setDataTableMerk(mappedData);
       setTotalData(totalData);
       setTotalPage(totalPage);
+      setListStatus(statusResult);
     } catch (error) {
       console.error("Error fetching merk data", error);
 
@@ -395,40 +398,13 @@ const MerkPage = () => {
             text: `Data merk dengan ID ${newData?.id} berhasil ditambahkan.`,
             confirmButtonText: "Oke",
           });
-        } catch (err: any) {
-          let message = "Terjadi kesalahan saat menyimpan data.";
-          if (err.response) {
-            switch (err.response.status) {
-              case 400:
-                message =
-                  err.response.data?.message ||
-                  "Data yang diinputkan tidak valid atau sudah ada";
-                break;
-              case 401:
-                message = "Sesi Anda telah berakhir. Silakan login kembali.";
-                break;
-              case 403:
-                message = "Anda tidak memiliki akses untuk menambahkan data.";
-                break;
-              case 405:
-                message =
-                  err.response.data?.message || "Data tidak sesuai format";
-                break;
-              case 500:
-                message = err.response.data?.message || "Server Error (500)";
-                break;
-              default:
-                message = err.response.data?.message || message;
-            }
-          }
-
+        } catch (err) {
           await Swal.fire({
             icon: "error",
             title: "Gagal",
-            text: message,
+            text: "Terjadi kesalahan saat menambahkan data merk.",
           });
 
-          // Buka kembali dialog jika gagal
           setShowTambahData(true);
         } finally {
           setLoadingUpload(false);
@@ -488,9 +464,76 @@ const MerkPage = () => {
     router.push("/merk");
   };
 
-  const handleSimpanUpdateMerk = () => {
+  const handleSimpanUpdateMerk = async () => {
     setShowUpdatePembaruan(false);
-    router.push("/merk");
+    if (!selectedRow || !selectedStatus) {
+      Swal.fire({
+        icon: "warning",
+        title: "Peringatan",
+        text: "Pilih status pembaruan terlebih dahulu.",
+      }).then(() => {
+        setShowUpdatePembaruan(true);
+      });
+      return;
+    }
+    const payload = {
+      eticket: selectedRow.etiket,
+      nomorPermohonan: selectedRow.nomorPermohonan,
+      nomorPendaftaran: selectedRow.nomorPendaftaran,
+      idStatus: selectedStatus.idStatus,
+      status: selectedStatus.namaStatus,
+      tanggalBerakhirPerlindungan: formatToYMD(
+        selectedRow.tanggalBerakhirPerlindungan
+      ),
+      linkPDKI: selectedRow.linkPDKI,
+      idPemegangHaki: selectedRow.idPemegangHaki,
+      namaPemegangHaki: selectedRow.namaPemegangHaki,
+    };
+
+    try {
+      const response = await Api.put(`/merk/${selectedRow.id}`, payload);
+
+      if (response.data?.responseCode === 200) {
+        setDataTableMerk((prevData) =>
+          prevData.map((item) =>
+            item.id === selectedRow.id
+              ? { ...item, statusPembaruan: updateStatusPembaruan }
+              : item
+          )
+        );
+
+        await fetchDataMerk();
+        setSelectedRow(null);
+        setSelectedStatus(null);
+
+        Swal.fire({
+          icon: "success",
+          title: "Berhasil!",
+          text: "Status pembaruan berhasil diperbarui.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+
+        setUpdateStatusPembaruan("");
+      } else {
+        throw new Error("Update gagal");
+      }
+    } catch (error: any) {
+      console.error("Error saat mengupdate pembaruan:", error);
+
+      const errorMessage =
+        error.response?.data?.responseDescription ||
+        error.response?.data?.message ||
+        "Terjadi kesalahan saat memperbarui status.";
+
+      Swal.fire({
+        icon: "error",
+        title: "Gagal",
+        text: errorMessage,
+      });
+
+      setShowUpdatePembaruan(true);
+    }
   };
 
   const handleCancelHapusMerk = () => {
@@ -499,12 +542,8 @@ const MerkPage = () => {
 
   const handleSimpanHapusMerk = async () => {
     if (!selectedRow) return;
-
-    // Tutup dialog dulu
     setShowHapusMerk(false);
-
     try {
-      // Konfirmasi penghapusan
       const result = await Swal.fire({
         icon: "warning",
         title: "Konfirmasi Hapus",
@@ -516,28 +555,20 @@ const MerkPage = () => {
         cancelButtonColor: "#6c757d",
       });
 
-      // Jika user membatalkan
       if (result.isDismissed) {
         setShowHapusMerk(true);
         return;
       }
-
-      // Jika user mengkonfirmasi penghapusan
       if (result.isConfirmed) {
-        // Soft delete: filter data yang akan dihapus
         const updatedData = dataTableMerk.filter(
           (item) => item.nomorPermohonan !== selectedRow.nomorPermohonan
         );
 
         console.log("Data setelah soft delete:", updatedData);
 
-        // Update state table
         setDataTableMerk(updatedData);
-
-        // Reset selected row
         setSelectedRow(null);
 
-        // Tampilkan notifikasi berhasil
         await Swal.fire({
           icon: "success",
           title: "Berhasil Dihapus!",
@@ -558,17 +589,6 @@ const MerkPage = () => {
     }
   };
 
-  const statusTambah: Status[] = [
-    { value: "didaftar", label: "Didaftar" },
-    { value: "ditolak", label: "Ditolak KBM" },
-  ];
-  const statusUpdatePembaruan: UpdateStatusPembaruanProps[] = [
-    { value: "none", label: "-", code: "-" },
-    { value: "tidak-diperpanjang", label: "Tidak Diperpanjang", code: "TDP" },
-    { value: "dalam-proses", label: "Dalam Proses", code: "DPS" },
-    { value: "selesai", label: "Selesai", code: "SLS" },
-  ];
-
   const isKadaluarsa = (tanggal: string) => {
     if (!tanggal) return false;
     const expDate = new Date(tanggal);
@@ -587,6 +607,15 @@ const MerkPage = () => {
     return `${day}-${month}-${year}`;
   };
 
+  const formatToYMD = (tanggal: string) => {
+    if (!tanggal) return "-";
+    const date = new Date(tanggal);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${year}-${month}-${day}`;
+  };
+
   const sortedData = useMemo(() => {
     if (!sortConfig.key) return dataTableMerk;
 
@@ -598,13 +627,13 @@ const MerkPage = () => {
       if (sortConfig.key === "status") {
         const labelX =
           typeof x === "object" && x !== null && "label" in x
-            ? (x as any).label ?? ""
+            ? (x as Status).namaStatus ?? ""
             : typeof x === "string"
             ? x
             : "";
         const labelY =
           typeof y === "object" && y !== null && "label" in y
-            ? (y as any).label ?? ""
+            ? (y as Status).namaStatus ?? ""
             : typeof y === "string"
             ? y
             : "";
@@ -613,7 +642,6 @@ const MerkPage = () => {
           ? labelX.localeCompare(labelY)
           : labelY.localeCompare(labelX);
       }
-
       // handle tanggal
       if (sortConfig.key === "tanggalBerakhirPerlindungan") {
         const dateX = x ? new Date(x as string).getTime() : 0;
@@ -621,14 +649,12 @@ const MerkPage = () => {
 
         return sortConfig.direction === "asc" ? dateX - dateY : dateY - dateX;
       }
-
       // handle string
       if (typeof x === "string" && typeof y === "string") {
         return sortConfig.direction === "asc"
           ? x.localeCompare(y)
           : y.localeCompare(x);
       }
-
       // handle number (kalau ada)
       if (typeof x === "number" && typeof y === "number") {
         return sortConfig.direction === "asc" ? x - y : y - x;
@@ -834,7 +860,7 @@ const MerkPage = () => {
                 variant="ghost"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleSort("pemegangHAKI");
+                  handleSort("namaPemegangHaki");
                 }}
                 className="flex items-center"
               >
@@ -863,7 +889,7 @@ const MerkPage = () => {
               </TableCell>
             </TableRow>
           ) : (
-            sortedData.map((item, index) => {
+            sortedData.map((item) => {
               // const isLastRow = index === paginatedData.length - 1;
               const {
                 etiket,
@@ -955,7 +981,10 @@ const MerkPage = () => {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onSelect={() => setShowUpdatePembaruan(true)}
+                            onSelect={() => {
+                              setShowUpdatePembaruan(true);
+                              setSelectedRow(item);
+                            }}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
                             <div className="text-sm hover:font-semibold flex items-center justify-start">
@@ -1029,12 +1058,12 @@ const MerkPage = () => {
                                 <SelectValue placeholder="Pilih status" />
                               </SelectTrigger>
                               <SelectContent>
-                                {statusTambah.map((update) => (
+                                {listStatus.map((update: Status) => (
                                   <SelectItem
-                                    key={update.value}
-                                    value={update.value}
+                                    key={update.idStatus}
+                                    value={update.idStatus}
                                   >
-                                    {update.label}
+                                    {update.namaStatus}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -1216,20 +1245,20 @@ const MerkPage = () => {
                             </Labels>
                             <Select
                               onValueChange={(val) =>
-                                setUpdateStatusPembaruan(val)
+                                setSelectedStatus(JSON.parse(val))
                               }
-                              value={updateStatusPembaruan}
                             >
                               <SelectTrigger className="w-full border rounded px-2 py-1">
                                 <SelectValue placeholder="Pilih status" />
                               </SelectTrigger>
+
                               <SelectContent>
-                                {statusUpdatePembaruan.map((update) => (
+                                {listStatus?.map((status: Status) => (
                                   <SelectItem
-                                    key={update.value}
-                                    value={update.value}
+                                    key={status.idStatus}
+                                    value={JSON.stringify(status)} // <- simpan object
                                   >
-                                    {update.label}
+                                    {status.namaStatus}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -1376,9 +1405,9 @@ const MerkPage = () => {
                     <SelectValue placeholder="Pilih status" />
                   </SelectTrigger>
                   <SelectContent>
-                    {statusTambah.map((update) => (
-                      <SelectItem key={update.value} value={update.value}>
-                        {update.label}
+                    {listStatus.map((update: Status) => (
+                      <SelectItem key={update.idStatus} value={update.idStatus}>
+                        {update.namaStatus}
                       </SelectItem>
                     ))}
                   </SelectContent>
