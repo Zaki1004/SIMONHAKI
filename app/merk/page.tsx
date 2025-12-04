@@ -518,18 +518,13 @@ const MerkPage = () => {
       } else {
         throw new Error("Update gagal");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error saat mengupdate pembaruan:", error);
-
-      const errorMessage =
-        error.response?.data?.responseDescription ||
-        error.response?.data?.message ||
-        "Terjadi kesalahan saat memperbarui status.";
 
       Swal.fire({
         icon: "error",
         title: "Gagal",
-        text: errorMessage,
+        text: "gagal mengupdate status pembaruan. Silakan coba lagi.",
       });
 
       setShowUpdatePembaruan(true);
@@ -541,8 +536,18 @@ const MerkPage = () => {
   };
 
   const handleSimpanHapusMerk = async () => {
-    if (!selectedRow) return;
     setShowHapusMerk(false);
+
+    if (!selectedRow) {
+      Swal.fire({
+        icon: "warning",
+        title: "Peringatan",
+        text: "Pilih data merk yang ingin dihapus terlebih dahulu.",
+      }).then(() => {});
+      return;
+    }
+    console.log("Menghapus merk dengan ID:", selectedRow.id);
+
     try {
       const result = await Swal.fire({
         icon: "warning",
@@ -559,32 +564,38 @@ const MerkPage = () => {
         setShowHapusMerk(true);
         return;
       }
+
       if (result.isConfirmed) {
-        const updatedData = dataTableMerk.filter(
-          (item) => item.nomorPermohonan !== selectedRow.nomorPermohonan
-        );
+        const response = await Api.delete(`/merk/${selectedRow.id}`);
 
-        console.log("Data setelah soft delete:", updatedData);
+        if (response.data?.responseCode === 200) {
+          setDataTableMerk((prevData) =>
+            prevData.filter((item) => item.id !== selectedRow.id)
+          );
 
-        setDataTableMerk(updatedData);
-        setSelectedRow(null);
+          await fetchDataMerk();
+          setSelectedRow(null);
 
-        await Swal.fire({
-          icon: "success",
-          title: "Berhasil Dihapus!",
-          text: "Data merk berhasil dihapus dari tabel.",
-          confirmButtonText: "Oke",
-          timer: 2000,
-        });
+          Swal.fire({
+            icon: "success",
+            title: "Berhasil Dihapus!",
+            text: "Data merk berhasil dihapus dari tabel.",
+            timer: 1500,
+            showConfirmButton: false,
+          });
+        } else {
+          throw new Error("Hapus gagal");
+        }
       }
     } catch (error) {
       console.error("Error saat menghapus:", error);
+
       Swal.fire({
         icon: "error",
         title: "Gagal",
-        text: "Terjadi kesalahan saat menghapus data.",
-        confirmButtonText: "Oke",
+        text: "Gagal menghapus data merk. Silakan coba lagi.",
       });
+
       setShowHapusMerk(true);
     }
   };
@@ -623,7 +634,6 @@ const MerkPage = () => {
       const x = a[sortConfig.key!];
       const y = b[sortConfig.key!];
 
-      // 1️⃣ Handle status (tipe Status)
       if (sortConfig.key === "status") {
         const labelX =
           typeof x === "object" && x !== null && "label" in x
@@ -655,7 +665,7 @@ const MerkPage = () => {
           ? x.localeCompare(y)
           : y.localeCompare(x);
       }
-      // handle number (kalau ada)
+      // handle number
       if (typeof x === "number" && typeof y === "number") {
         return sortConfig.direction === "asc" ? x - y : y - x;
       }
