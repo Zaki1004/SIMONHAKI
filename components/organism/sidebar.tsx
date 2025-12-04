@@ -15,6 +15,7 @@ const Sidebar = () => {
           <div className="flex flex-col gap-2 py-4 px-6">
             <div className="text-md">Menu</div>
             <div
+              qa-sidebar="Dashboard"
               className={`text-md ${
                 pathname === "/" ? "bg-white text-[#064263]" : "bg-[#00425A]"
               } rounded-md p-2`}
@@ -22,6 +23,7 @@ const Sidebar = () => {
               <Link href="/">Dashboard</Link>
             </div>
             <div
+              qa-sidebar="Merk"
               className={`text-md ${
                 pathname === "/merk"
                   ? "bg-white text-[#064263]"
@@ -31,6 +33,7 @@ const Sidebar = () => {
               <Link href="/merk">Merk</Link>
             </div>
             <div
+              qa-sidebar="Paten"
               className={`text-md ${
                 pathname === "/paten"
                   ? "bg-white text-[#064263]"
@@ -40,6 +43,7 @@ const Sidebar = () => {
               <Link href="/paten">Paten</Link>
             </div>
             <div
+              qa-sidebar="Hak Cipta"
               className={`text-md ${
                 pathname === "/hak-cipta"
                   ? "bg-white text-[#064263]"
@@ -49,6 +53,7 @@ const Sidebar = () => {
               <Link href="/hak-cipta">Hak Cipta</Link>
             </div>
             <div
+              qa-sidebar="Desain Industri"
               className={`text-md ${
                 pathname === "/desain-industri"
                   ? "bg-white text-[#064263]"
@@ -58,6 +63,7 @@ const Sidebar = () => {
               <Link href="/desain-industri">Desain Industri</Link>
             </div>
             <div
+              qa-sidebar="Indikasi Geografis"
               className={`text-md ${
                 pathname === "/indikasi-geografis"
                   ? "bg-white text-[#064263]"
@@ -67,6 +73,7 @@ const Sidebar = () => {
               <Link href="/indikasi-geografis">Indikasi Geografis</Link>
             </div>
             <div
+              qa-sidebar="Brand Valuation"
               className={`text-md ${
                 pathname === "/brand-valuation"
                   ? "bg-white text-[#064263]"
@@ -98,6 +105,7 @@ const Sidebar = () => {
             </p>
             <div className="flex justify-center text-primary-900">
               <Buttons
+                qa-btn="btn-manual-book"
                 variant="outline"
                 size="sm"
                 className="text-sm mt-6"

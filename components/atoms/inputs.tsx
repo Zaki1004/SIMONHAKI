@@ -6,6 +6,7 @@ interface InputsProps {
   type: string;
   className: string;
   onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   value?: string;
 }
 
@@ -14,6 +15,7 @@ const Inputs = ({
   type,
   className,
   onChange,
+  onKeyDown,
   value,
 }: InputsProps) => {
   return (
@@ -22,6 +24,7 @@ const Inputs = ({
       type={type}
       className={className}
       onChange={onChange}
+      onKeyDown={onKeyDown}
       value={value}
     />
   );

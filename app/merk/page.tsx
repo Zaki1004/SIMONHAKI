@@ -24,8 +24,6 @@ import {
   Pagination,
   PaginationContent,
   PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
 } from "@/components/ui/pagination";
 import { PopoverContent } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
@@ -64,15 +62,18 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { json } from "stream/consumers";
 import Swal from "sweetalert2";
 
 type DataMerksProps = {
   id: string;
-  etiket: string;
+  eticket: string;
   nomorPermohonan: string;
   nomorPendaftaran: string;
   idStatus: string;
   status: string;
+  statusPendaftaran: string;
+  idStatusPendaftaran: string;
   linkPDKI: string;
   tanggalBerakhirPerlindungan: string;
   sisaWaktuPerlindungan: string;
@@ -81,9 +82,13 @@ type DataMerksProps = {
   idPemegangHaki: string;
 };
 
-interface Status {
+interface StatusPembaruan {
   idStatus: string;
   namaStatus: string;
+}
+interface StatusPendaftaran {
+  idStatusPendaftaran: string;
+  statusPendaftaran: string;
 }
 interface PemegangHAKIProps {
   nama: string;
@@ -108,7 +113,6 @@ const MerkPage = () => {
   const [pemegangHakiList, setPemegangHakiList] = useState<PemegangHAKIProps[]>(
     []
   );
-  const [statusTambahData, setStatusTambahData] = useState("");
   const [updateStatusPembaruan, setUpdateStatusPembaruan] = useState("");
   const [fileEtiketMerk, setFileEtiketMerk] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -125,8 +129,15 @@ const MerkPage = () => {
   const [selectedRow, setSelectedRow] = useState<DataMerksProps | null>(null);
   const [dataTableMerk, setDataTableMerk] = useState<DataMerksProps[]>([]);
   const [loadingPemegangHaki, setLoadingPemegangHaki] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<Status | null>(null);
-  const [listStatus, setListStatus] = useState<Status[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<StatusPembaruan | null>(
+    null
+  );
+  const [listStatus, setListStatus] = useState<StatusPembaruan[]>([]);
+  const [selectedStatusPendaftaran, setSelectedStatusPendaftaran] =
+    useState<StatusPendaftaran | null>(null);
+  const [listStatusPendaftaran, setListStatusPendaftaran] = useState<
+    StatusPendaftaran[]
+  >([]);
 
   const [sortConfig, setSortConfig] = useState<{
     key: SortField;
@@ -151,7 +162,14 @@ const MerkPage = () => {
     // autofill semua input
     setNomorPermohonan(row.nomorPermohonan);
     setNomorPendaftaran(row.nomorPendaftaran);
-    setStatusTambahData(row.status);
+    setSelectedStatusPendaftaran(
+      row.statusPendaftaran
+        ? {
+            idStatusPendaftaran: row.idStatusPendaftaran,
+            statusPendaftaran: row.statusPendaftaran,
+          }
+        : null
+    );
     setLinkPdki(row.linkPDKI);
     setNamaPemegangHaki(row.namaPemegangHaki);
 
@@ -171,13 +189,13 @@ const MerkPage = () => {
     tanggalBerakhirPerlindungan &&
     linkPdki &&
     namaPemegangHaki &&
-    statusTambahData &&
+    selectedStatusPendaftaran &&
     selectedFile;
 
   const resetForm = () => {
     setNomorPermohonan("");
     setNomorPendaftaran("");
-    setStatusTambahData("");
+    setSelectedStatusPendaftaran(null);
     setLinkPdki("");
     setNamaPemegangHaki("");
     setTanggalBerakhirPerlindungan("");
@@ -241,14 +259,16 @@ const MerkPage = () => {
 
   const fetchDataMerk = async () => {
     try {
-      const [resMerk, resStatus] = await Promise.all([
-        Api.get(
-          `/merk?search=${encodeURIComponent(
-            search
-          )}&page=${currentPage}&limit=${perPage}`
-        ),
-        Api.get(`/status-pembaruan`),
-      ]);
+      const [resMerk, resStatusPembaruan, resStatusPendaftaran] =
+        await Promise.all([
+          Api.get(
+            `/merk?search=${encodeURIComponent(
+              search
+            )}&page=${currentPage}&limit=${perPage}`
+          ),
+          Api.get(`/status-pembaruan`),
+          Api.get(`/status-pendaftaran`),
+        ]);
 
       const result = resMerk.data?.data?.data;
       const totalData = resMerk.data?.data?.totalData || 0;
@@ -263,15 +283,15 @@ const MerkPage = () => {
               : "-",
           }))
         : [];
-      const statusResult = resStatus.data?.data || [];
+      const isStatusPembaruan = resStatusPembaruan.data?.data || [];
+      const isStatusPendaftaran = resStatusPendaftaran.data?.data || [];
 
       setDataTableMerk(mappedData);
       setTotalData(totalData);
       setTotalPage(totalPage);
-      setListStatus(statusResult);
+      setListStatus(isStatusPembaruan);
+      setListStatusPendaftaran(isStatusPendaftaran);
     } catch (error) {
-      console.error("Error fetching merk data", error);
-
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -328,10 +348,6 @@ const MerkPage = () => {
     fileInputRef.current?.click();
   };
 
-  const handleSearch = (value: string) => {
-    setSearch(value);
-  };
-
   const handleCancelTambahData = () => {
     router.push("/merk");
   };
@@ -343,7 +359,7 @@ const MerkPage = () => {
       !tanggalBerakhirPerlindungan ||
       !linkPdki ||
       !namaPemegangHaki ||
-      !statusTambahData ||
+      !selectedStatusPendaftaran ||
       !selectedFile
     ) {
       Swal.fire({
@@ -374,7 +390,10 @@ const MerkPage = () => {
         const formData = new FormData();
         formData.append("nomorPermohonan", nomorPermohonan);
         formData.append("nomorPendaftaran", nomorPendaftaran);
-        formData.append("status", statusTambahData);
+        formData.append(
+          "statusPendaftaran",
+          selectedStatusPendaftaran.statusPendaftaran
+        );
         formData.append(
           "tanggalBerakhirPerlindungan",
           tanggalBerakhirPerlindungan
@@ -382,7 +401,7 @@ const MerkPage = () => {
         formData.append("linkPDKI", linkPdki);
         formData.append("pemegangHAKI", namaPemegangHaki);
         if (selectedFile) {
-          formData.append("etiket", selectedFile);
+          formData.append("eticket", selectedFile);
         }
 
         try {
@@ -432,32 +451,71 @@ const MerkPage = () => {
     router.push("/merk");
   };
 
-  const handleSimpanEditMerk = () => {
-    if (!selectedRow) return;
+  const handleSimpanEditMerk = async () => {
+    setShowUpdatePembaruan(false);
+    //   if (!selectedRow || !selectedStatus) {
+    //     Swal.fire({
+    //       icon: "warning",
+    //       title: "Peringatan",
+    //       text: "Pilih status pembaruan terlebih dahulu.",
+    //     }).then(() => {
+    //       setShowUpdatePembaruan(true);
+    //     });
+    //     return;
+    //   }
+    //   const payload = {
+    //     eticket: selectedRow.eticket,
+    //     nomorPermohonan: selectedRow.nomorPermohonan,
+    //     nomorPendaftaran: selectedRow.nomorPendaftaran,
+    //     idStatus: selectedStatus.idStatus,
+    //     status: selectedStatus.namaStatus,
+    //     tanggalBerakhirPerlindungan: formatToYMD(
+    //       selectedRow.tanggalBerakhirPerlindungan
+    //     ),
+    //     linkPDKI: selectedRow.linkPDKI,
+    //     idPemegangHaki: selectedRow.idPemegangHaki,
+    //     namaPemegangHaki: selectedRow.namaPemegangHaki,
+    //   };
 
-    const updatedData = dataTableMerk.map((item) =>
-      item.nomorPermohonan === selectedRow.nomorPermohonan
-        ? {
-            ...item,
-            status: statusTambahData?.trim() || item.status,
-            nomorPermohonan: nomorPermohonan?.trim() || item.nomorPermohonan,
-            nomorPendaftaran: nomorPendaftaran?.trim() || item.nomorPendaftaran,
-            linkPDKI: linkPdki?.trim() || item.linkPDKI,
-            tanggalBerakhirPerlindungan:
-              tanggalBerakhirPerlindungan || item.tanggalBerakhirPerlindungan,
-            pemegangHAKI: namaPemegangHaki.trim() || item.namaPemegangHaki,
-          }
-        : item
-    );
+    //   try {
+    //     const response = await Api.put(`/merk/pembaruan/${selectedRow.id}`, payload);
 
-    setDataTableMerk(updatedData);
-    setShowEditMerk(false);
+    //     if (response.data?.responseCode === 200) {
+    //       setDataTableMerk((prevData) =>
+    //         prevData.map((item) =>
+    //           item.id === selectedRow.id
+    //             ? { ...item, statusPembaruan: updateStatusPembaruan }
+    //             : item
+    //         )
+    //       );
 
-    Swal.fire({
-      icon: "success",
-      title: "Berhasil",
-      text: "Data berhasil diperbarui!",
-    });
+    //       await fetchDataMerk();
+    //       setSelectedRow(null);
+    //       setSelectedStatus(null);
+
+    //       Swal.fire({
+    //         icon: "success",
+    //         title: "Berhasil!",
+    //         text: "Status pembaruan berhasil diperbarui.",
+    //         timer: 1500,
+    //         showConfirmButton: false,
+    //       });
+
+    //       setUpdateStatusPembaruan("");
+    //     } else {
+    //       throw new Error("Update gagal");
+    //     }
+    //   } catch (error) {
+    //     console.error("Error saat mengupdate pembaruan:", error);
+
+    //     Swal.fire({
+    //       icon: "error",
+    //       title: "Gagal",
+    //       text: "gagal mengupdate status pembaruan. Silakan coba lagi.",
+    //     });
+
+    //     setShowUpdatePembaruan(true);
+    //   }
   };
 
   const handleCancelUpdateMerk = () => {
@@ -477,11 +535,13 @@ const MerkPage = () => {
       return;
     }
     const payload = {
-      eticket: selectedRow.etiket,
+      eticket: selectedRow.eticket,
       nomorPermohonan: selectedRow.nomorPermohonan,
       nomorPendaftaran: selectedRow.nomorPendaftaran,
       idStatus: selectedStatus.idStatus,
       status: selectedStatus.namaStatus,
+      idStatusPendaftaran: selectedStatusPendaftaran?.idStatusPendaftaran,
+      statusPendaftaran: selectedStatusPendaftaran?.statusPendaftaran,
       tanggalBerakhirPerlindungan: formatToYMD(
         selectedRow.tanggalBerakhirPerlindungan
       ),
@@ -491,7 +551,10 @@ const MerkPage = () => {
     };
 
     try {
-      const response = await Api.put(`/merk/${selectedRow.id}`, payload);
+      const response = await Api.put(
+        `/merk/pembaruan/${selectedRow.id}`,
+        payload
+      );
 
       if (response.data?.responseCode === 200) {
         setDataTableMerk((prevData) =>
@@ -546,7 +609,7 @@ const MerkPage = () => {
       }).then(() => {});
       return;
     }
-    console.log("Menghapus merk dengan ID:", selectedRow.id);
+    console.log(!selectedRow);
 
     try {
       const result = await Swal.fire({
@@ -568,6 +631,10 @@ const MerkPage = () => {
       if (result.isConfirmed) {
         const response = await Api.delete(`/merk/${selectedRow.id}`);
 
+        console.log("Response dari API:", response);
+        console.log("Response data:", response.data);
+        console.log("Response code:", response.data?.responseCode);
+
         if (response.data?.responseCode === 200) {
           setDataTableMerk((prevData) =>
             prevData.filter((item) => item.id !== selectedRow.id)
@@ -579,7 +646,7 @@ const MerkPage = () => {
           Swal.fire({
             icon: "success",
             title: "Berhasil Dihapus!",
-            text: "Data merk berhasil dihapus dari tabel.",
+            text: `Data merk ${selectedRow.nomorPermohonan} berhasil dihapus dari tabel.`,
             timer: 1500,
             showConfirmButton: false,
           });
@@ -637,13 +704,13 @@ const MerkPage = () => {
       if (sortConfig.key === "status") {
         const labelX =
           typeof x === "object" && x !== null && "label" in x
-            ? (x as Status).namaStatus ?? ""
+            ? (x as StatusPendaftaran).statusPendaftaran ?? ""
             : typeof x === "string"
             ? x
             : "";
         const labelY =
           typeof y === "object" && y !== null && "label" in y
-            ? (y as Status).namaStatus ?? ""
+            ? (y as StatusPendaftaran).statusPendaftaran ?? ""
             : typeof y === "string"
             ? y
             : "";
@@ -683,14 +750,24 @@ const MerkPage = () => {
         <div className="font-semibold">Tabel Merk</div>
         <div className=" flex items-center">
           <Inputs
+            qa-input="input-search"
             type="search"
             placeholder="Cari Merk"
             className="w-[287px] rounded-md px-2 py-1"
             value={search}
-            onChange={(e) => handleSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                fetchDataMerk();
+              }
+            }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
           />
 
           <Buttons
+            qa-btn="tambah-data-merk"
             variant="default"
             size="sm"
             className="ml-2 "
@@ -707,6 +784,7 @@ const MerkPage = () => {
       {/* Checkbox */}
       <div className="flex items-center gap-2 mx-4 mt-4">
         <Checkbox
+          qa-button="checkbox-tampilkan-kadaluarsa"
           id="terms"
           onCheckedChange={(showKadaluarsa) =>
             setShowKadaluarsa(!!showKadaluarsa)
@@ -718,7 +796,7 @@ const MerkPage = () => {
         </Labels>
       </div>
 
-      <Table className="bg-white m-5 rounded-xl">
+      <Table qa-table="merk" className="bg-white m-5 rounded-xl">
         {/* border-separate border-spacing-0 */}
         <TableHeader>
           <TableRow>
@@ -726,6 +804,7 @@ const MerkPage = () => {
 
             <TableHead>
               <Buttons
+                qa-btn="sorting-status"
                 size=""
                 variant="ghost"
                 onClick={(e) => {
@@ -749,6 +828,7 @@ const MerkPage = () => {
 
             <TableHead>
               <Buttons
+                qa-btn="sorting-nomor-permohonan"
                 size=""
                 variant="ghost"
                 onClick={(e) => {
@@ -772,6 +852,7 @@ const MerkPage = () => {
 
             <TableHead>
               <Buttons
+                qa-btn="sorting-nomor-pendaftaran"
                 size=""
                 variant="ghost"
                 onClick={(e) => {
@@ -797,6 +878,7 @@ const MerkPage = () => {
 
             <TableHead>
               <Buttons
+                qa-btn="sorting-tanggal-berakhir-perlindungan"
                 size=""
                 variant="ghost"
                 onClick={(e) => {
@@ -820,6 +902,7 @@ const MerkPage = () => {
 
             <TableHead>
               <Buttons
+                qa-btn="sorting-sisa-waktu-perlindungan"
                 size=""
                 variant="ghost"
                 onClick={(e) => {
@@ -843,6 +926,7 @@ const MerkPage = () => {
 
             <TableHead>
               <Buttons
+                qa-btn="sorting-status-pembaruan"
                 size=""
                 variant="ghost"
                 onClick={(e) => {
@@ -866,6 +950,7 @@ const MerkPage = () => {
 
             <TableHead>
               <Buttons
+                qa-btn="sorting-nama-pemegang-haki"
                 size=""
                 variant="ghost"
                 onClick={(e) => {
@@ -902,14 +987,14 @@ const MerkPage = () => {
             sortedData.map((item) => {
               // const isLastRow = index === paginatedData.length - 1;
               const {
-                etiket,
+                eticket,
                 status,
+                statusPendaftaran,
                 nomorPermohonan,
                 nomorPendaftaran,
                 linkPDKI,
                 tanggalBerakhirPerlindungan,
                 sisaWaktuPerlindungan,
-                statusPembaruan,
                 namaPemegangHaki,
               } = item;
 
@@ -929,16 +1014,14 @@ const MerkPage = () => {
                         ? "border-l-4 border-l-[#DC3545]"
                         : ""
                     }`}
-                    // ${isLastRow ? "rounded-bl-xl" : ""}
                   >
-                    <Image
-                      src="/logo/image 1.svg"
-                      alt="E-Tiket Merk"
-                      width={52}
-                      height={15}
+                    <img
+                      src={`${Api.defaults.baseURL}merk/eticket/${eticket}`}
+                      alt={eticket}
+                      width="70px"
                     />
                   </TableCell>
-                  <TableCell>{status}</TableCell>
+                  <TableCell>{statusPendaftaran}</TableCell>
                   <TableCell>{nomorPermohonan}</TableCell>
                   <TableCell>{nomorPendaftaran}</TableCell>
                   <TableCell>
@@ -947,7 +1030,7 @@ const MerkPage = () => {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:underline"
-                      aria-label={`Buka PDKI untuk ${etiket}`}
+                      aria-label={`Buka PDKI untuk ${eticket}`}
                     >
                       {linkPDKI}
                     </Link>
@@ -960,12 +1043,13 @@ const MerkPage = () => {
                   <TableCell className="max-w-xs truncate">
                     {sisaWaktuPerlindungan}
                   </TableCell>
-                  <TableCell>{statusPembaruan}</TableCell>
+                  <TableCell>{status}</TableCell>
                   <TableCell>{namaPemegangHaki}</TableCell>
                   <TableCell>
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button
+                          qa-select-trigger="select-action"
                           variant="outline"
                           aria-label="Open menu"
                           size="icon-sm"
@@ -976,6 +1060,7 @@ const MerkPage = () => {
                       <DropdownMenuContent className="w-40" align="end">
                         <DropdownMenuGroup className="space-y-1">
                           <DropdownMenuItem
+                            qa-select-option="edit-merk"
                             onSelect={() => handleEdit(item)}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
@@ -991,6 +1076,7 @@ const MerkPage = () => {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            qa-select-option="update-status-pembaruan"
                             onSelect={() => {
                               setShowUpdatePembaruan(true);
                               setSelectedRow(item);
@@ -1009,7 +1095,11 @@ const MerkPage = () => {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onSelect={() => setShowHapusMerk(true)}
+                            qa-select-option="hapus-merk"
+                            onSelect={() => {
+                              setShowHapusMerk(true);
+                              setSelectedRow(item);
+                            }}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
                             <div className="text-sm hover:font-semibold flex items-center justify-start">
@@ -1045,6 +1135,7 @@ const MerkPage = () => {
                               <span className="text-red-500 ml-1">*</span>
                             </Labels>
                             <Inputs
+                              qa-input="input-etiket"
                               type="text"
                               placeholder="121"
                               className="w-full border rounded px-2 py-1"
@@ -1061,21 +1152,30 @@ const MerkPage = () => {
                               <span className="text-red-500 ml-1">*</span>
                             </Labels>
                             <Select
-                              onValueChange={(val) => setStatusTambahData(val)}
-                              value={statusTambahData}
+                              onValueChange={(val) =>
+                                setSelectedStatusPendaftaran(JSON.parse(val))
+                              }
+                              value={
+                                selectedStatusPendaftaran
+                                  ? JSON.stringify(selectedStatusPendaftaran)
+                                  : ""
+                              }
                             >
                               <SelectTrigger className="w-full border rounded px-2 py-1">
                                 <SelectValue placeholder="Pilih status" />
                               </SelectTrigger>
+
                               <SelectContent>
-                                {listStatus.map((update: Status) => (
-                                  <SelectItem
-                                    key={update.idStatus}
-                                    value={update.idStatus}
-                                  >
-                                    {update.namaStatus}
-                                  </SelectItem>
-                                ))}
+                                {listStatusPendaftaran?.map(
+                                  (status: StatusPendaftaran) => (
+                                    <SelectItem
+                                      key={status.idStatusPendaftaran}
+                                      value={JSON.stringify(status)} // <- simpan object
+                                    >
+                                      {status.statusPendaftaran}
+                                    </SelectItem>
+                                  )
+                                )}
                               </SelectContent>
                             </Select>
                           </div>
@@ -1089,6 +1189,7 @@ const MerkPage = () => {
                               <span className="text-red-500 ml-1">*</span>
                             </Labels>
                             <Inputs
+                              qa-input="input-nomor-permohonan"
                               type="text"
                               placeholder="J002014046345"
                               className="w-full border rounded px-2 py-1"
@@ -1107,6 +1208,7 @@ const MerkPage = () => {
                               <span className="text-red-500 ml-1">*</span>
                             </Labels>
                             <Inputs
+                              qa-input="input-nomor-pendaftaran"
                               type="text"
                               placeholder="IDM000550171"
                               className="w-full border rounded px-2 py-1"
@@ -1130,6 +1232,7 @@ const MerkPage = () => {
                             >
                               <PopoverTrigger asChild>
                                 <Button
+                                  qa-btn="select-tanggal-berakhir-perlindungan"
                                   variant="outline"
                                   className="w-full justify-between font-normal"
                                 >
@@ -1173,6 +1276,7 @@ const MerkPage = () => {
                               <span className="text-red-500 ml-1">*</span>
                             </Labels>
                             <Inputs
+                              qa-input="input-link-pdki"
                               type="text"
                               placeholder="https://simonhaki.pnm.co.id"
                               className="w-full border rounded px-2 py-1"
@@ -1216,6 +1320,7 @@ const MerkPage = () => {
                         <DialogFooter className="p-4">
                           <DialogClose asChild>
                             <Buttons
+                              qa-btn="batal-edit-merk"
                               variant="defaultSecond"
                               size="sm"
                               onClick={() => handleCancelEditMerk()}
@@ -1225,6 +1330,7 @@ const MerkPage = () => {
                             </Buttons>
                           </DialogClose>
                           <Buttons
+                            qa-btn="simpan-edit-merk"
                             variant="default"
                             size="sm"
                             onClick={() => handleSimpanEditMerk()}
@@ -1251,7 +1357,8 @@ const MerkPage = () => {
                               htmlFor="status"
                               className="block text-sm font-medium mb-1"
                             >
-                              Status<span className="text-red-500 ml-1">*</span>
+                              Status Pembaruan
+                              <span className="text-red-500 ml-1">*</span>
                             </Labels>
                             <Select
                               onValueChange={(val) =>
@@ -1263,7 +1370,7 @@ const MerkPage = () => {
                               </SelectTrigger>
 
                               <SelectContent>
-                                {listStatus?.map((status: Status) => (
+                                {listStatus?.map((status: StatusPembaruan) => (
                                   <SelectItem
                                     key={status.idStatus}
                                     value={JSON.stringify(status)} // <- simpan object
@@ -1279,6 +1386,7 @@ const MerkPage = () => {
                           <DialogClose asChild>
                             <div className="space-x-2">
                               <Buttons
+                                qa-btn="batal-update-pembaruan"
                                 variant="defaultSecond"
                                 size="sm"
                                 onClick={() => handleCancelUpdateMerk()}
@@ -1287,6 +1395,7 @@ const MerkPage = () => {
                                 Batal
                               </Buttons>
                               <Buttons
+                                qa-btn="simpan-update-pembaruan"
                                 variant="default"
                                 size="sm"
                                 onClick={() => handleSimpanUpdateMerk()}
@@ -1333,6 +1442,7 @@ const MerkPage = () => {
                           <DialogClose asChild>
                             <div className="space-x-2">
                               <Buttons
+                                qa-btn="batal-hapus-merk"
                                 variant="defaultSecond"
                                 size="sm"
                                 onClick={() => handleCancelHapusMerk()}
@@ -1341,6 +1451,7 @@ const MerkPage = () => {
                                 Batal
                               </Buttons>
                               <Buttons
+                                qa-btn="simpan-hapus-merk"
                                 variant="default"
                                 size="sm"
                                 onClick={() => handleSimpanHapusMerk()}
@@ -1378,6 +1489,7 @@ const MerkPage = () => {
                   Nomor Permohonan<span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Inputs
+                  qa-input="input-nomor-permohonan"
                   type="text"
                   placeholder="Masukan nomor permohonan"
                   className="w-full border rounded px-2 py-1"
@@ -1393,6 +1505,7 @@ const MerkPage = () => {
                   Nomor Pendaftaran<span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Inputs
+                  qa-input="input-nomor-pendaftaran"
                   type="text"
                   placeholder="Masukan nomor pendaftaran"
                   className="w-full border rounded px-2 py-1"
@@ -1408,16 +1521,25 @@ const MerkPage = () => {
                   Status<span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Select
-                  onValueChange={(val) => setStatusTambahData(val)}
-                  value={statusTambahData}
+                  onValueChange={(val) =>
+                    setSelectedStatusPendaftaran(JSON.parse(val))
+                  }
+                  value={
+                    selectedStatusPendaftaran
+                      ? JSON.stringify(selectedStatusPendaftaran)
+                      : ""
+                  }
                 >
                   <SelectTrigger className="w-full border rounded px-2 py-1">
                     <SelectValue placeholder="Pilih status" />
                   </SelectTrigger>
                   <SelectContent>
-                    {listStatus.map((update: Status) => (
-                      <SelectItem key={update.idStatus} value={update.idStatus}>
-                        {update.namaStatus}
+                    {listStatusPendaftaran?.map((status: StatusPendaftaran) => (
+                      <SelectItem
+                        key={status.idStatusPendaftaran}
+                        value={JSON.stringify(status)}
+                      >
+                        {status.statusPendaftaran}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1434,6 +1556,7 @@ const MerkPage = () => {
                 <Popover open={openDatePicker} onOpenChange={setOpenDatePicker}>
                   <PopoverTrigger asChild>
                     <Button
+                      qa-btn="select-tanggal-berakhir-perlindungan"
                       variant="outline"
                       className="w-full justify-between font-normal"
                     >
@@ -1473,6 +1596,7 @@ const MerkPage = () => {
                   Link PDKI<span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Inputs
+                  qa-input="input-link-pdki"
                   type="text"
                   placeholder="Masukan link PDKI"
                   className="w-full border rounded px-2 py-1"
@@ -1617,6 +1741,7 @@ const MerkPage = () => {
                         <div className="flex flex-col justify-center text-center">
                           <p className="text-gray-600">
                             <a
+                              qa-link="input-file-etiket"
                               id="browse_file"
                               onClick={handleBrowseClick}
                               className="text-blue-600 underline cursor-pointer mr-1"
@@ -1635,6 +1760,7 @@ const MerkPage = () => {
 
                   {/* --- INPUT FILE TERSEMBUNYI --- */}
                   <input
+                    qa-input="input-etiket-merk"
                     ref={fileInputRef}
                     type="file"
                     accept=".png"
@@ -1648,6 +1774,7 @@ const MerkPage = () => {
           <DialogFooter className="p-4">
             <DialogClose asChild>
               <Buttons
+                qa-btn="batal-tambah-data-merk"
                 variant="defaultSecond"
                 size="sm"
                 onClick={() => handleCancelTambahData()}
@@ -1657,6 +1784,7 @@ const MerkPage = () => {
               </Buttons>
             </DialogClose>
             <Buttons
+              qa-btn="simpan-tambah-data-merk"
               variant="default"
               size="sm"
               disabled={!isFormValid}
@@ -1699,34 +1827,75 @@ const MerkPage = () => {
         <div className="flex justify-center py-4">
           <Pagination>
             <PaginationContent>
-              {/* PREVIOUS */}
+              {/* DOUBLE ARROW LEFT - KE HALAMAN PERTAMA */}
               <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={() => !isFirstPage && setCurrentPage((p) => p - 1)}
+                <Button
+                  qa-btn="first-page"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={isFirstPage}
                   className={
                     isFirstPage ? "pointer-events-none opacity-40" : ""
                   }
-                />
+                >
+                  <span className="flex">
+                    <ChevronDownIcon className="h-4 w-4 rotate-90" />
+                    <ChevronDownIcon className="h-4 w-4 rotate-90 -ml-2" />
+                  </span>
+                </Button>
               </PaginationItem>
 
-              {/* NOMOR HALAMAN - HANYA TAMPIL HALAMAN SAAT INI */}
-              <PaginationItem className="rounded-lg text-white text-sm bg-[#006694] text-center px-3 py-2">
-                {currentPage}
-              </PaginationItem>
-
-              {/* NEXT */}
+              {/* SINGLE ARROW LEFT - PREVIOUS */}
               <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (!isLastPage) {
-                      setCurrentPage((prev) => prev + 1);
-                    }
-                  }}
+                <Button
+                  qa-btn="prev-table"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => !isFirstPage && setCurrentPage((p) => p - 1)}
+                  disabled={isFirstPage}
+                  className={
+                    isFirstPage ? "pointer-events-none opacity-40" : ""
+                  }
+                >
+                  <ChevronDownIcon className="h-4 w-4 rotate-90" />
+                </Button>
+              </PaginationItem>
+
+              {/* NOMOR HALAMAN SAAT INI */}
+              <PaginationItem className="rounded-lg text-white text-sm bg-[#006694] text-center px-4 py-2 mx-2">
+                {currentPage} / {totalPage}
+              </PaginationItem>
+
+              {/* SINGLE ARROW RIGHT - NEXT */}
+              <PaginationItem>
+                <Button
+                  qa-btn="next-table"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => !isLastPage && setCurrentPage((p) => p + 1)}
+                  disabled={isLastPage}
                   className={isLastPage ? "pointer-events-none opacity-40" : ""}
-                />
+                >
+                  <ChevronDownIcon className="h-4 w-4 -rotate-90" />
+                </Button>
+              </PaginationItem>
+
+              {/* DOUBLE ARROW RIGHT - KE HALAMAN TERAKHIR */}
+              <PaginationItem>
+                <Button
+                  qa-btn="last-page"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(totalPage)}
+                  disabled={isLastPage}
+                  className={isLastPage ? "pointer-events-none opacity-40" : ""}
+                >
+                  <span className="flex">
+                    <ChevronDownIcon className="h-4 w-4 -rotate-90" />
+                    <ChevronDownIcon className="h-4 w-4 -rotate-90 -ml-2" />
+                  </span>
+                </Button>
               </PaginationItem>
             </PaginationContent>
           </Pagination>
