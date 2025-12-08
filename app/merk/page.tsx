@@ -62,7 +62,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import { json } from "stream/consumers";
 import Swal from "sweetalert2";
 
 type DataMerksProps = {
@@ -156,10 +155,8 @@ const MerkPage = () => {
     setSortConfig({ key, direction });
   };
 
-  const handleEdit = (row: DataMerksProps) => {
-    // simpan row yang dipilih (opsional)
+  const handleEditMerk = (row: DataMerksProps) => {
     setSelectedRow(row);
-    // autofill semua input
     setNomorPermohonan(row.nomorPermohonan);
     setNomorPendaftaran(row.nomorPendaftaran);
     setSelectedStatusPendaftaran(
@@ -172,14 +169,9 @@ const MerkPage = () => {
     );
     setLinkPdki(row.linkPDKI);
     setNamaPemegangHaki(row.namaPemegangHaki);
-
-    // tanggal → ubah ke Date()
     setTanggalBerakhirPerlindungan("");
-
-    // file (biasanya kosong kecuali kamu simpan nama file)
     setFileEtiketMerk(null);
 
-    // buka dialog
     setShowEditMerk(true);
   };
 
@@ -313,7 +305,7 @@ const MerkPage = () => {
   const validateAndSetFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const file = files[0]; // hanya satu file
-    setLoadingUpload(true); // ⬅️ loading dulu
+    setLoadingUpload(true);
     // Optional: kasih delay dikit agar loading terlihat
     await new Promise((r) => setTimeout(r, 300));
     // 1. Validasi ukuran maksimal 2MB
@@ -332,7 +324,7 @@ const MerkPage = () => {
     }
     // 3. Simulasi upload (API belum ada)
     setTimeout(() => {
-      setSelectedFile(file); // hanya dipanggil sekali
+      setSelectedFile(file);
       setLoadingUpload(false);
     }, 2000);
     console.log("Selected file:", file);
@@ -379,12 +371,10 @@ const MerkPage = () => {
         confirmButtonText: "Ya, tambah data",
         cancelButtonText: "Batal",
       });
-      // Jika user batal, buka kembali dialog
       if (result.isDismissed) {
         setShowTambahData(true);
         return;
       }
-      // Step 3: Jika user konfirmasi, kirim data ke API
       if (result.isConfirmed) {
         setLoadingUpload(true);
         const formData = new FormData();
@@ -984,7 +974,7 @@ const MerkPage = () => {
               </TableCell>
             </TableRow>
           ) : (
-            sortedData.map((item) => {
+            sortedData.map((item, rowIndex) => {
               // const isLastRow = index === paginatedData.length - 1;
               const {
                 eticket,
@@ -1008,6 +998,7 @@ const MerkPage = () => {
                   }
                 >
                   <TableCell
+                    qa-table={`cell.${rowIndex}.0.table-merk`}
                     className={`  ${
                       showKadaluarsa &&
                       isKadaluarsa(tanggalBerakhirPerlindungan)
@@ -1021,10 +1012,16 @@ const MerkPage = () => {
                       width="70px"
                     />
                   </TableCell>
-                  <TableCell>{statusPendaftaran}</TableCell>
-                  <TableCell>{nomorPermohonan}</TableCell>
-                  <TableCell>{nomorPendaftaran}</TableCell>
-                  <TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.1.table-merk`}>
+                    {statusPendaftaran}
+                  </TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.2.table-merk`}>
+                    {nomorPermohonan}
+                  </TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.3.table-merk`}>
+                    {nomorPendaftaran}
+                  </TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.4.table-merk`}>
                     <Link
                       href="/indikasi-geografis"
                       target="_blank"
@@ -1035,17 +1032,24 @@ const MerkPage = () => {
                       {linkPDKI}
                     </Link>
                   </TableCell>
-                  <TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.5.table-merk`}>
                     {tanggalBerakhirPerlindungan
                       ? formatToDMY(tanggalBerakhirPerlindungan)
                       : "-"}
                   </TableCell>
-                  <TableCell className="max-w-xs truncate">
+                  <TableCell
+                    className="max-w-xs truncate"
+                    qa-table={`cell.${rowIndex}.6.table-merk`}
+                  >
                     {sisaWaktuPerlindungan}
                   </TableCell>
-                  <TableCell>{status}</TableCell>
-                  <TableCell>{namaPemegangHaki}</TableCell>
-                  <TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.7.table-merk`}>
+                    {status}
+                  </TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.8.table-merk`}>
+                    {namaPemegangHaki}
+                  </TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.9.table-merk`}>
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -1061,7 +1065,7 @@ const MerkPage = () => {
                         <DropdownMenuGroup className="space-y-1">
                           <DropdownMenuItem
                             qa-select-option="edit-merk"
-                            onSelect={() => handleEdit(item)}
+                            onSelect={() => handleEditMerk(item)}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
                             <div className="text-sm hover:font-semibold flex items-center justify-start">
@@ -1152,6 +1156,7 @@ const MerkPage = () => {
                               <span className="text-red-500 ml-1">*</span>
                             </Labels>
                             <Select
+                              qa-select="status-pendaftaran"
                               onValueChange={(val) =>
                                 setSelectedStatusPendaftaran(JSON.parse(val))
                               }
@@ -1161,7 +1166,10 @@ const MerkPage = () => {
                                   : ""
                               }
                             >
-                              <SelectTrigger className="w-full border rounded px-2 py-1">
+                              <SelectTrigger
+                                className="w-full border rounded px-2 py-1"
+                                qa-select-trigger="select-status-pendaftaran"
+                              >
                                 <SelectValue placeholder="Pilih status" />
                               </SelectTrigger>
 
@@ -1171,6 +1179,7 @@ const MerkPage = () => {
                                     <SelectItem
                                       key={status.idStatusPendaftaran}
                                       value={JSON.stringify(status)} // <- simpan object
+                                      qa-select-option={`select-status-pendaftaran-${status.statusPendaftaran}`}
                                     >
                                       {status.statusPendaftaran}
                                     </SelectItem>
@@ -1295,15 +1304,23 @@ const MerkPage = () => {
                             <Select
                               onValueChange={(val) => setNamaPemegangHaki(val)}
                               value={namaPemegangHaki}
+                              qa-select="nama-pemegang-haki"
                             >
-                              <SelectTrigger className="w-full border rounded px-2 py-1">
+                              <SelectTrigger
+                                className="w-full border rounded px-2 py-1"
+                                qa-select-trigger="select-nama-pemegang-haki"
+                              >
                                 <SelectValue placeholder="Nama Pemegang HAKI" />
                               </SelectTrigger>
                               <SelectContent>
                                 {pemegangHakiList &&
                                 pemegangHakiList.length > 0 ? (
                                   pemegangHakiList.map((item) => (
-                                    <SelectItem key={item.id} value={item.nama}>
+                                    <SelectItem
+                                      key={item.id}
+                                      value={item.nama}
+                                      qa-select-option={`select-nama-pemegang-haki-${item.nama}`}
+                                    >
                                       {item.nama}
                                     </SelectItem>
                                   ))
@@ -1364,8 +1381,12 @@ const MerkPage = () => {
                               onValueChange={(val) =>
                                 setSelectedStatus(JSON.parse(val))
                               }
+                              qa-select="update-status-pembaruan"
                             >
-                              <SelectTrigger className="w-full border rounded px-2 py-1">
+                              <SelectTrigger
+                                className="w-full border rounded px-2 py-1"
+                                qa-select-trigger="select-update-status-pembaruan"
+                              >
                                 <SelectValue placeholder="Pilih status" />
                               </SelectTrigger>
 
@@ -1374,6 +1395,7 @@ const MerkPage = () => {
                                   <SelectItem
                                     key={status.idStatus}
                                     value={JSON.stringify(status)} // <- simpan object
+                                    qa-select-option={`select-update-status-pembaruan-${status.namaStatus}`}
                                   >
                                     {status.namaStatus}
                                   </SelectItem>
@@ -1521,6 +1543,7 @@ const MerkPage = () => {
                   Status<span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Select
+                  qa-select="status-pendaftaran"
                   onValueChange={(val) =>
                     setSelectedStatusPendaftaran(JSON.parse(val))
                   }
@@ -1530,7 +1553,10 @@ const MerkPage = () => {
                       : ""
                   }
                 >
-                  <SelectTrigger className="w-full border rounded px-2 py-1">
+                  <SelectTrigger
+                    className="w-full border rounded px-2 py-1"
+                    qa-select-trigger="select-status-pendaftaran"
+                  >
                     <SelectValue placeholder="Pilih status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1538,6 +1564,7 @@ const MerkPage = () => {
                       <SelectItem
                         key={status.idStatusPendaftaran}
                         value={JSON.stringify(status)}
+                        qa-select-option={`select-status-pendaftaran-${status.statusPendaftaran}`}
                       >
                         {status.statusPendaftaran}
                       </SelectItem>
@@ -1612,16 +1639,24 @@ const MerkPage = () => {
                   Nama Pemegang Haki<span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Select
+                  qa-select="nama-pemegang-haki"
                   onValueChange={(val) => setNamaPemegangHaki(val)}
                   value={namaPemegangHaki}
                 >
-                  <SelectTrigger className="w-full border rounded px-2 py-1">
+                  <SelectTrigger
+                    className="w-full border rounded px-2 py-1"
+                    qa-select-trigger="select-nama-pemegang-haki"
+                  >
                     <SelectValue placeholder="Pilih nama pemegang HAKI" />
                   </SelectTrigger>
                   <SelectContent>
                     {pemegangHakiList && pemegangHakiList.length > 0 ? (
                       pemegangHakiList.map((item) => (
-                        <SelectItem key={item.id} value={item.nama}>
+                        <SelectItem
+                          key={item.id}
+                          value={item.nama}
+                          qa-select-option={`select-nama-pemegang-haki-${item.nama}`}
+                        >
                           {item.nama}
                         </SelectItem>
                       ))
@@ -1807,6 +1842,7 @@ const MerkPage = () => {
           <span>Show</span>
 
           <select
+            qa-select="per-page"
             className="border rounded-md px-2 py-1 bg-white"
             value={perPage}
             onChange={(e: ChangeEvent<HTMLSelectElement>) => {
@@ -1815,9 +1851,15 @@ const MerkPage = () => {
               setCurrentPage(1);
             }}
           >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
+            <option value={10} qa-select-option="10">
+              10
+            </option>
+            <option value={25} qa-select-option="25">
+              25
+            </option>
+            <option value={50} qa-select-option="50">
+              50
+            </option>
           </select>
 
           <span>entries</span>
