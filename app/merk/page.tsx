@@ -20,6 +20,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import {
   Pagination,
   PaginationContent,
@@ -137,6 +138,8 @@ const MerkPage = () => {
   const [listStatusPendaftaran, setListStatusPendaftaran] = useState<
     StatusPendaftaran[]
   >([]);
+  const [selectedPemegangHaki, setSelectedPemegangHaki] =
+    useState<PemegangHAKIProps | null>(null);
 
   const [sortConfig, setSortConfig] = useState<{
     key: SortField;
@@ -155,32 +158,12 @@ const MerkPage = () => {
     setSortConfig({ key, direction });
   };
 
-  const handleEditMerk = (row: DataMerksProps) => {
-    setSelectedRow(row);
-    setNomorPermohonan(row.nomorPermohonan);
-    setNomorPendaftaran(row.nomorPendaftaran);
-    setSelectedStatusPendaftaran(
-      row.statusPendaftaran
-        ? {
-            idStatusPendaftaran: row.idStatusPendaftaran,
-            statusPendaftaran: row.statusPendaftaran,
-          }
-        : null
-    );
-    setLinkPdki(row.linkPDKI);
-    setNamaPemegangHaki(row.namaPemegangHaki);
-    setTanggalBerakhirPerlindungan("");
-    setFileEtiketMerk(null);
-
-    setShowEditMerk(true);
-  };
-
   const isFormValid =
     nomorPermohonan &&
     nomorPendaftaran &&
     tanggalBerakhirPerlindungan &&
     linkPdki &&
-    namaPemegangHaki &&
+    selectedPemegangHaki &&
     selectedStatusPendaftaran &&
     selectedFile;
 
@@ -350,7 +333,7 @@ const MerkPage = () => {
       !nomorPendaftaran ||
       !tanggalBerakhirPerlindungan ||
       !linkPdki ||
-      !namaPemegangHaki ||
+      !selectedPemegangHaki ||
       !selectedStatusPendaftaran ||
       !selectedFile
     ) {
@@ -385,17 +368,22 @@ const MerkPage = () => {
           selectedStatusPendaftaran.statusPendaftaran
         );
         formData.append(
+          "idStatusPendaftaran",
+          selectedStatusPendaftaran.idStatusPendaftaran
+        );
+        formData.append(
           "tanggalBerakhirPerlindungan",
           tanggalBerakhirPerlindungan
         );
         formData.append("linkPDKI", linkPdki);
-        formData.append("pemegangHAKI", namaPemegangHaki);
-        if (selectedFile) {
-          formData.append("eticket", selectedFile);
-        }
+        formData.append("namaPemegangHaki", selectedPemegangHaki.nama);
+        formData.append("idPemegangHaki", selectedPemegangHaki.id);
+        formData.append("eticket", selectedFile);
 
         try {
-          const response = await Api.post("/merk", formData, {});
+          const response = await Api.post("/merk", formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
 
           const newData = response.data?.data;
           resetForm();
@@ -405,7 +393,7 @@ const MerkPage = () => {
             icon: "success",
             title: "Berhasil Ditambahkan!",
             text: `Data merk dengan ID ${newData?.id} berhasil ditambahkan.`,
-            confirmButtonText: "Oke",
+            timer: 1500,
           });
         } catch (err) {
           await Swal.fire({
@@ -441,71 +429,169 @@ const MerkPage = () => {
     router.push("/merk");
   };
 
+  const handleEditMerk = (row: DataMerksProps) => {
+    setSelectedRow(row);
+    setNomorPermohonan(row.nomorPermohonan);
+    setNomorPendaftaran(row.nomorPendaftaran);
+    setSelectedStatusPendaftaran(
+      row.statusPendaftaran
+        ? {
+            idStatusPendaftaran: row.idStatusPendaftaran,
+            statusPendaftaran: row.statusPendaftaran,
+          }
+        : null
+    );
+    setLinkPdki(row.linkPDKI);
+    setSelectedPemegangHaki(
+      row.namaPemegangHaki && row.idPemegangHaki
+        ? {
+            id: row.idPemegangHaki,
+            nama: row.namaPemegangHaki,
+          }
+        : null
+    );
+    setTanggalBerakhirPerlindungan(row.tanggalBerakhirPerlindungan);
+
+    // Set existing file untuk ditampilkan
+    if (row.eticket) {
+      setSelectedFile({
+        name: row.eticket,
+        size: 0, // Ukuran tidak diketahui dari backend
+        type: "image/png",
+        isExisting: true, // Flag untuk menandai ini file yang sudah ada
+      } as any);
+      setProgress(100); // Set progress ke 100% karena file sudah ada
+    } else {
+      setSelectedFile(null);
+    }
+
+    setShowEditMerk(true);
+  };
+
   const handleSimpanEditMerk = async () => {
-    setShowUpdatePembaruan(false);
-    //   if (!selectedRow || !selectedStatus) {
-    //     Swal.fire({
-    //       icon: "warning",
-    //       title: "Peringatan",
-    //       text: "Pilih status pembaruan terlebih dahulu.",
-    //     }).then(() => {
-    //       setShowUpdatePembaruan(true);
-    //     });
-    //     return;
-    //   }
-    //   const payload = {
-    //     eticket: selectedRow.eticket,
-    //     nomorPermohonan: selectedRow.nomorPermohonan,
-    //     nomorPendaftaran: selectedRow.nomorPendaftaran,
-    //     idStatus: selectedStatus.idStatus,
-    //     status: selectedStatus.namaStatus,
-    //     tanggalBerakhirPerlindungan: formatToYMD(
-    //       selectedRow.tanggalBerakhirPerlindungan
-    //     ),
-    //     linkPDKI: selectedRow.linkPDKI,
-    //     idPemegangHaki: selectedRow.idPemegangHaki,
-    //     namaPemegangHaki: selectedRow.namaPemegangHaki,
-    //   };
+    setShowEditMerk(false);
+    if (
+      !selectedRow ||
+      !nomorPermohonan ||
+      !nomorPendaftaran ||
+      !selectedStatusPendaftaran ||
+      !tanggalBerakhirPerlindungan ||
+      !linkPdki ||
+      !selectedPemegangHaki
+    ) {
+      Swal.fire({
+        icon: "warning",
+        title: "Peringatan",
+        text: "Lengkapi semua form terlebih dahulu.",
+      }).then(() => {
+        setShowEditMerk(true);
+      });
+      return;
+    }
 
-    //   try {
-    //     const response = await Api.put(`/merk/pembaruan/${selectedRow.id}`, payload);
+    try {
+      const result = await Swal.fire({
+        icon: "question",
+        title: "Apakah data sudah benar?",
+        text: "Pastikan semua informasi sudah benar sebelum menyimpan perubahan.",
+        showCancelButton: true,
+        confirmButtonText: "Ya, simpan",
+        cancelButtonText: "Batal",
+      });
 
-    //     if (response.data?.responseCode === 200) {
-    //       setDataTableMerk((prevData) =>
-    //         prevData.map((item) =>
-    //           item.id === selectedRow.id
-    //             ? { ...item, statusPembaruan: updateStatusPembaruan }
-    //             : item
-    //         )
-    //       );
+      if (result.isDismissed) {
+        setShowEditMerk(true);
+        return;
+      }
 
-    //       await fetchDataMerk();
-    //       setSelectedRow(null);
-    //       setSelectedStatus(null);
+      if (result.isConfirmed) {
+        setLoadingUpload(true);
 
-    //       Swal.fire({
-    //         icon: "success",
-    //         title: "Berhasil!",
-    //         text: "Status pembaruan berhasil diperbarui.",
-    //         timer: 1500,
-    //         showConfirmButton: false,
-    //       });
+        const formData = new FormData();
+        formData.append("nomorPermohonan", nomorPermohonan);
+        formData.append("nomorPendaftaran", nomorPendaftaran);
+        formData.append(
+          "statusPendaftaran",
+          selectedStatusPendaftaran.statusPendaftaran
+        );
+        formData.append(
+          "idStatusPendaftaran",
+          selectedStatusPendaftaran.idStatusPendaftaran
+        );
+        formData.append(
+          "tanggalBerakhirPerlindungan",
+          formatToYMD(tanggalBerakhirPerlindungan)
+        );
+        formData.append("linkPDKI", linkPdki);
+        formData.append("idPemegangHaki", selectedPemegangHaki.id);
+        formData.append("namaPemegangHaki", selectedPemegangHaki.nama);
 
-    //       setUpdateStatusPembaruan("");
-    //     } else {
-    //       throw new Error("Update gagal");
-    //     }
-    //   } catch (error) {
-    //     console.error("Error saat mengupdate pembaruan:", error);
+        if (
+          selectedFile &&
+          !(selectedFile as File & { isExisting?: boolean }).isExisting
+        ) {
+          formData.append("eticket", selectedFile);
+        }
 
-    //     Swal.fire({
-    //       icon: "error",
-    //       title: "Gagal",
-    //       text: "gagal mengupdate status pembaruan. Silakan coba lagi.",
-    //     });
+        // Debug log
+        console.log("=== DATA YANG DIKIRIM ===");
+        console.log("nomorPermohonan:", nomorPermohonan);
+        console.log("nomorPendaftaran:", nomorPendaftaran);
+        console.log("selectedStatusPendaftaran:", selectedStatusPendaftaran);
+        console.log(
+          "tanggalBerakhirPerlindungan:",
+          tanggalBerakhirPerlindungan
+        );
+        console.log("linkPdki:", linkPdki);
+        console.log("selectedPemegangHaki:", selectedPemegangHaki);
+        console.log("selectedFile:", selectedFile);
 
-    //     setShowUpdatePembaruan(true);
-    //   }
+        try {
+          const response = await Api.put(
+            `/merk/${selectedRow.id}`,
+            formData,
+            {}
+          );
+
+          console.log("Response:", response);
+
+          if (response.data?.responseCode === 200) {
+            await fetchDataMerk();
+            resetForm();
+            setSelectedFile(null);
+            setSelectedRow(null);
+            setShowEditMerk(false);
+
+            await Swal.fire({
+              icon: "success",
+              title: "Berhasil!",
+              text: "Data merk berhasil diperbarui.",
+              timer: 1500,
+              showConfirmButton: false,
+            });
+          } else {
+            throw new Error("Update gagal");
+          }
+        } catch (err) {
+          await Swal.fire({
+            icon: "error",
+            title: "Gagal",
+            text: "Gagal memperbarui data merk. Silakan coba lagi.",
+          });
+          setShowEditMerk(true);
+        } finally {
+          setLoadingUpload(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error dalam proses edit:", error);
+      await Swal.fire({
+        icon: "error",
+        title: "ERROR",
+        text: "Terjadi kesalahan yang tidak terduga.",
+      });
+      setShowEditMerk(true);
+    }
   };
 
   const handleCancelUpdateMerk = () => {
@@ -620,10 +706,6 @@ const MerkPage = () => {
 
       if (result.isConfirmed) {
         const response = await Api.delete(`/merk/${selectedRow.id}`);
-
-        console.log("Response dari API:", response);
-        console.log("Response data:", response.data);
-        console.log("Response code:", response.data?.responseCode);
 
         if (response.data?.responseCode === 200) {
           setDataTableMerk((prevData) =>
@@ -1129,24 +1211,47 @@ const MerkPage = () => {
                             Edit Merk
                           </DialogTitle>
                         </DialogHeader>
-                        <div className="grid grid-cols-2 grid-rows-4 gap-4 p-4">
+                        <div className="grid grid-cols-2 gap-4 p-4">
                           <div>
                             <Labels
-                              htmlFor="etiket-merk"
+                              htmlFor="no-permohonan"
                               className="block text-sm font-medium mb-1"
                             >
-                              E-Tiket Merk
+                              Nomor Permohonan
                               <span className="text-red-500 ml-1">*</span>
                             </Labels>
                             <Inputs
-                              qa-input="input-etiket"
+                              qa-input="input-edit-nomor-permohonan"
                               type="text"
-                              placeholder="121"
+                              placeholder="J002014046345"
                               className="w-full border rounded px-2 py-1"
-                              value={value}
-                              onChange={(e) => setValue(e.target.value)}
+                              value={nomorPermohonan}
+                              onChange={(e) =>
+                                setNomorPermohonan(e.target.value)
+                              }
                             />
                           </div>
+
+                          <div>
+                            <Labels
+                              htmlFor="no-pendaftaran"
+                              className="block text-sm font-medium mb-1"
+                            >
+                              Nomor Pendaftaran
+                              <span className="text-red-500 ml-1">*</span>
+                            </Labels>
+                            <Inputs
+                              qa-input="input-edit-nomor-pendaftaran"
+                              type="text"
+                              placeholder="IDM000550171"
+                              className="w-full border rounded px-2 py-1"
+                              value={nomorPendaftaran}
+                              onChange={(e) =>
+                                setNomorPendaftaran(e.target.value)
+                              }
+                            />
+                          </div>
+
                           <div>
                             <Labels
                               htmlFor="status"
@@ -1156,7 +1261,7 @@ const MerkPage = () => {
                               <span className="text-red-500 ml-1">*</span>
                             </Labels>
                             <Select
-                              qa-select="status-pendaftaran"
+                              qa-select="edit-status-pendaftaran"
                               onValueChange={(val) =>
                                 setSelectedStatusPendaftaran(JSON.parse(val))
                               }
@@ -1168,7 +1273,7 @@ const MerkPage = () => {
                             >
                               <SelectTrigger
                                 className="w-full border rounded px-2 py-1"
-                                qa-select-trigger="select-status-pendaftaran"
+                                qa-select-trigger="select-edit-status-pendaftaran"
                               >
                                 <SelectValue placeholder="Pilih status" />
                               </SelectTrigger>
@@ -1178,8 +1283,8 @@ const MerkPage = () => {
                                   (status: StatusPendaftaran) => (
                                     <SelectItem
                                       key={status.idStatusPendaftaran}
-                                      value={JSON.stringify(status)} // <- simpan object
-                                      qa-select-option={`select-status-pendaftaran-${status.statusPendaftaran}`}
+                                      value={JSON.stringify(status)}
+                                      qa-select-option={`select-edit-status-pendaftaran-${status.statusPendaftaran}`}
                                     >
                                       {status.statusPendaftaran}
                                     </SelectItem>
@@ -1189,44 +1294,6 @@ const MerkPage = () => {
                             </Select>
                           </div>
 
-                          <div>
-                            <Labels
-                              htmlFor="no-permohonan"
-                              className="block text-sm font-medium mb-1"
-                            >
-                              Nomor Permohonan
-                              <span className="text-red-500 ml-1">*</span>
-                            </Labels>
-                            <Inputs
-                              qa-input="input-nomor-permohonan"
-                              type="text"
-                              placeholder="J002014046345"
-                              className="w-full border rounded px-2 py-1"
-                              value={nomorPermohonan}
-                              onChange={(e) =>
-                                setNomorPermohonan(e.target.value)
-                              }
-                            />
-                          </div>
-                          <div>
-                            <Labels
-                              htmlFor="no-pendaftaran"
-                              className="block text-sm font-medium mb-1"
-                            >
-                              Nomor Pendaftaran
-                              <span className="text-red-500 ml-1">*</span>
-                            </Labels>
-                            <Inputs
-                              qa-input="input-nomor-pendaftaran"
-                              type="text"
-                              placeholder="IDM000550171"
-                              className="w-full border rounded px-2 py-1"
-                              value={nomorPendaftaran}
-                              onChange={(e) =>
-                                setNomorPendaftaran(e.target.value)
-                              }
-                            />
-                          </div>
                           <div>
                             <Labels
                               htmlFor="tanggal-berakhir-perlindungan"
@@ -1241,12 +1308,13 @@ const MerkPage = () => {
                             >
                               <PopoverTrigger asChild>
                                 <Button
-                                  qa-btn="select-tanggal-berakhir-perlindungan"
+                                  qa-btn="select-edit-tanggal-berakhir-perlindungan"
                                   variant="outline"
                                   className="w-full justify-between font-normal"
                                 >
-                                  {tanggalBerakhirPerlindungan ||
-                                    "Masukkan tanggal berakhir perlindungan"}
+                                  {tanggalBerakhirPerlindungan
+                                    ? formatToDMY(tanggalBerakhirPerlindungan)
+                                    : "Masukkan tanggal berakhir perlindungan"}
 
                                   <ChevronDownIcon className="ml-2 h-4 w-4 opacity-50" />
                                 </Button>
@@ -1276,6 +1344,7 @@ const MerkPage = () => {
                               </PopoverContent>
                             </Popover>
                           </div>
+
                           <div>
                             <Labels
                               htmlFor="link-pdki"
@@ -1285,7 +1354,7 @@ const MerkPage = () => {
                               <span className="text-red-500 ml-1">*</span>
                             </Labels>
                             <Inputs
-                              qa-input="input-link-pdki"
+                              qa-input="input-edit-link-pdki"
                               type="text"
                               placeholder="https://simonhaki.pnm.co.id"
                               className="w-full border rounded px-2 py-1"
@@ -1293,6 +1362,7 @@ const MerkPage = () => {
                               onChange={(e) => setLinkPdki(e.target.value)}
                             />
                           </div>
+
                           <div>
                             <Labels
                               htmlFor="nama-pemegang-haki"
@@ -1302,13 +1372,19 @@ const MerkPage = () => {
                               <span className="text-red-500 ml-1">*</span>
                             </Labels>
                             <Select
-                              onValueChange={(val) => setNamaPemegangHaki(val)}
-                              value={namaPemegangHaki}
-                              qa-select="nama-pemegang-haki"
+                              qa-select="edit-nama-pemegang-haki"
+                              onValueChange={(val) =>
+                                setSelectedPemegangHaki(JSON.parse(val))
+                              }
+                              value={
+                                selectedPemegangHaki
+                                  ? JSON.stringify(selectedPemegangHaki)
+                                  : ""
+                              }
                             >
                               <SelectTrigger
                                 className="w-full border rounded px-2 py-1"
-                                qa-select-trigger="select-nama-pemegang-haki"
+                                qa-select-trigger="select-edit-nama-pemegang-haki"
                               >
                                 <SelectValue placeholder="Nama Pemegang HAKI" />
                               </SelectTrigger>
@@ -1318,8 +1394,8 @@ const MerkPage = () => {
                                   pemegangHakiList.map((item) => (
                                     <SelectItem
                                       key={item.id}
-                                      value={item.nama}
-                                      qa-select-option={`select-nama-pemegang-haki-${item.nama}`}
+                                      value={JSON.stringify(item)}
+                                      qa-select-option={`select-edit-nama-pemegang-haki-${item.nama}`}
                                     >
                                       {item.nama}
                                     </SelectItem>
@@ -1332,6 +1408,101 @@ const MerkPage = () => {
                               </SelectContent>
                             </Select>
                           </div>
+
+                          {/* E-TIKET MERK SECTION */}
+                          <div className="col-span-2">
+                            <Labels
+                              htmlFor="etiket-merk"
+                              className="block text-sm font-medium mb-1"
+                            >
+                              E-Tiket Merk{" "}
+                              <span className="text-red-500 ml-1">*</span>
+                            </Labels>
+
+                            {selectedFile ? (
+                              <div className="flex items-center justify-between w-full gap-4 border rounded-lg p-4">
+                                {/* KIRI: PREVIEW ICON + INFO FILE */}
+                                <div className="flex items-center gap-4">
+                                  <Image
+                                    src="/icon/png 1.svg"
+                                    alt="Logo Upload"
+                                    width={50}
+                                    height={50}
+                                  />
+
+                                  <div>
+                                    <p className="font-medium text-sm">
+                                      {selectedFile.name}
+                                    </p>
+                                    {selectedFile.size > 0 ? (
+                                      <p className="text-xs text-gray-500">
+                                        {(selectedFile.size / 1024).toFixed(2)}{" "}
+                                        KB
+                                      </p>
+                                    ) : (
+                                      <p className="text-xs text-gray-500">
+                                        File sudah terupload
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* KANAN: EDIT & DELETE + STATUS */}
+                                <div className="flex flex-col items-end">
+                                  <div className="flex items-center gap-2">
+                                    <Image
+                                      qa-btn="edit-file-etiket-merk"
+                                      src="/icon/edit-svgrepo-com 2.svg"
+                                      alt="Edit"
+                                      width={16}
+                                      height={16}
+                                      onClick={handleBrowseClick}
+                                      className="cursor-pointer text-[#888888] hover:text-[#064263]"
+                                      title="Ganti file"
+                                    />
+
+                                    <Image
+                                      qa-btn={`hapus-file-etiket-merk${nomorPermohonan}`}
+                                      src="/icon/Trash.svg"
+                                      alt="Delete"
+                                      width={16}
+                                      height={16}
+                                      onClick={handleHapusImages}
+                                      className="cursor-pointer text-[#888888] hover:text-red-500"
+                                      title="Hapus file"
+                                    />
+                                  </div>
+
+                                  <p className="text-xs text-green-600 font-medium mt-1">
+                                    ✓ Completed
+                                  </p>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="border rounded-lg p-4 text-center text-gray-400">
+                                <p className="text-sm">Tidak ada file</p>
+                                <Button
+                                  qa-btn="upload-file-etiket-merk"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleBrowseClick}
+                                  className="mt-2"
+                                >
+                                  Upload File
+                                </Button>
+                              </div>
+                            )}
+
+                            {/* INPUT FILE TERSEMBUNYI */}
+                            <input
+                              qa-input="input-etiket-merk-edit"
+                              ref={fileInputRef}
+                              type="file"
+                              accept=".png"
+                              onChange={(e) => handleFileChange(e)}
+                              className="hidden"
+                            />
+                          </div>
                         </div>
 
                         <DialogFooter className="p-4">
@@ -1340,7 +1511,10 @@ const MerkPage = () => {
                               qa-btn="batal-edit-merk"
                               variant="defaultSecond"
                               size="sm"
-                              onClick={() => handleCancelEditMerk()}
+                              onClick={() => {
+                                handleCancelEditMerk();
+                                setSelectedFile(null);
+                              }}
                               className="w-20 p-2"
                             >
                               Batal
@@ -1544,9 +1718,10 @@ const MerkPage = () => {
                 </Labels>
                 <Select
                   qa-select="status-pendaftaran"
-                  onValueChange={(val) =>
-                    setSelectedStatusPendaftaran(JSON.parse(val))
-                  }
+                  onValueChange={(val) => {
+                    const selected = JSON.parse(val);
+                    setSelectedStatusPendaftaran(selected); // Simpan object lengkap
+                  }}
                   value={
                     selectedStatusPendaftaran
                       ? JSON.stringify(selectedStatusPendaftaran)
@@ -1640,8 +1815,15 @@ const MerkPage = () => {
                 </Labels>
                 <Select
                   qa-select="nama-pemegang-haki"
-                  onValueChange={(val) => setNamaPemegangHaki(val)}
-                  value={namaPemegangHaki}
+                  onValueChange={(val) => {
+                    const selected = JSON.parse(val);
+                    setSelectedPemegangHaki(selected); // Simpan object lengkap
+                  }}
+                  value={
+                    selectedPemegangHaki
+                      ? JSON.stringify(selectedPemegangHaki)
+                      : ""
+                  }
                 >
                   <SelectTrigger
                     className="w-full border rounded px-2 py-1"
@@ -1654,7 +1836,7 @@ const MerkPage = () => {
                       pemegangHakiList.map((item) => (
                         <SelectItem
                           key={item.id}
-                          value={item.nama}
+                          value={JSON.stringify(item)}
                           qa-select-option={`select-nama-pemegang-haki-${item.nama}`}
                         >
                           {item.nama}
@@ -1751,7 +1933,7 @@ const MerkPage = () => {
                                 alt="Logo Upload"
                                 width={16}
                                 height={16}
-                                // onClick={handleHapusImages}
+                                onClick={handleBrowseClick}
                                 className="text-[#888888]"
                               />
                               <Image
