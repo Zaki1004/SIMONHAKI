@@ -20,7 +20,6 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import {
   Pagination,
   PaginationContent,
@@ -101,9 +100,8 @@ const MerkPage = () => {
   const [showEditMerk, setShowEditMerk] = useState(false);
   const [showUpdatePembaruan, setShowUpdatePembaruan] = useState(false);
   const [showHapusMerk, setShowHapusMerk] = useState(false);
-  const [showTambahData, setShowTambahData] = useState(false);
+  const [showDialogMerk, setShowDialogMerk] = useState(false);
   const [showKadaluarsa, setShowKadaluarsa] = useState(false);
-  const [value, setValue] = useState("");
   const [nomorPermohonan, setNomorPermohonan] = useState("");
   const [nomorPendaftaran, setNomorPendaftaran] = useState("");
   const [tanggalBerakhirPerlindungan, setTanggalBerakhirPerlindungan] =
@@ -117,6 +115,7 @@ const MerkPage = () => {
   const [fileEtiketMerk, setFileEtiketMerk] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [oldFileName, setOldFileName] = useState("");
   const [loadingUpload, setLoadingUpload] = useState(false);
   const [progress, setProgress] = useState(13);
   const [openDatePicker, setOpenDatePicker] = useState(false);
@@ -165,7 +164,8 @@ const MerkPage = () => {
     linkPdki &&
     selectedPemegangHaki &&
     selectedStatusPendaftaran &&
-    selectedFile;
+    (selectedRow ? oldFileName || selectedFile : selectedFile);
+  selectedFile;
 
   const resetForm = () => {
     setNomorPermohonan("");
@@ -175,6 +175,7 @@ const MerkPage = () => {
     setNamaPemegangHaki("");
     setTanggalBerakhirPerlindungan("");
     setSelectedFile(null);
+    setOldFileName("");
     setFileEtiketMerk(null);
     setSelectedRow(null);
   };
@@ -287,22 +288,30 @@ const MerkPage = () => {
 
   const validateAndSetFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const file = files[0]; // hanya satu file
+    const file = files[0];
+
     setLoadingUpload(true);
-    // Optional: kasih delay dikit agar loading terlihat
     await new Promise((r) => setTimeout(r, 300));
-    // 1. Validasi ukuran maksimal 2MB
+
     const MAX_SIZE = 200 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       setLoadingUpload(false);
-      alert("Ukuran Maksimal Hanya 200KB");
+      Swal.fire({
+        icon: "error",
+        title: "error",
+        text: "Max Size 2 MB",
+      });
       return;
     }
-    // 2. Validasi format PNG
+
     const ext = file.name.split(".").pop()?.toLowerCase();
     if (ext !== "png") {
       setLoadingUpload(false);
-      alert("Format file tidak valid, Hanya PNG");
+      Swal.fire({
+        icon: "error",
+        title: "ERROR",
+        text: "Format file tidak valid, Format file PNG",
+      });
       return;
     }
     // 3. Simulasi upload (API belum ada)
@@ -323,11 +332,13 @@ const MerkPage = () => {
     fileInputRef.current?.click();
   };
 
-  const handleCancelTambahData = () => {
-    router.push("/merk");
+  const handleCancelDialogMerk = () => {
+    resetForm();
+    setShowEditMerk(false);
   };
 
-  const handleSimpanTambahData = async () => {
+  const handleSimpanDialogMerk = async () => {
+    setShowDialogMerk(false);
     if (
       !nomorPermohonan ||
       !nomorPendaftaran ||
@@ -335,7 +346,7 @@ const MerkPage = () => {
       !linkPdki ||
       !selectedPemegangHaki ||
       !selectedStatusPendaftaran ||
-      !selectedFile
+      !(selectedRow ? oldFileName || selectedFile : selectedFile)
     ) {
       Swal.fire({
         icon: "warning",
@@ -343,21 +354,28 @@ const MerkPage = () => {
         text: "Lengkapi semua form terlebih dahulu.",
       });
       return;
+    } else {
+      setShowDialogMerk(true);
     }
-    setShowTambahData(false);
+
     try {
+      setShowDialogMerk(false);
       const result = await Swal.fire({
         icon: "question",
         title: "Apakah data sudah benar?",
-        text: "Pastikan semua informasi sudah benar sebelum menambahkan data.",
+        text: `Pastikan semua informasi sudah benar sebelum ${
+          selectedRow?.id ? "mengedit" : "menambahkan"
+        } data.`,
         showCancelButton: true,
-        confirmButtonText: "Ya, tambah data",
+        confirmButtonText: "Ya, simpan data",
         cancelButtonText: "Batal",
       });
+
       if (result.isDismissed) {
-        setShowTambahData(true);
+        setShowDialogMerk(true);
         return;
       }
+
       if (result.isConfirmed) {
         setLoadingUpload(true);
         const formData = new FormData();
@@ -373,36 +391,59 @@ const MerkPage = () => {
         );
         formData.append(
           "tanggalBerakhirPerlindungan",
-          tanggalBerakhirPerlindungan
+          formatToYMD(tanggalBerakhirPerlindungan)
         );
         formData.append("linkPDKI", linkPdki);
         formData.append("namaPemegangHaki", selectedPemegangHaki.nama);
         formData.append("idPemegangHaki", selectedPemegangHaki.id);
-        formData.append("eticket", selectedFile);
+        if (selectedFile) {
+          formData.append("eticket", selectedFile);
+        }
 
         try {
-          const response = await Api.post("/merk", formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
+          if (!selectedRow?.id) {
+            const response = await Api.post("/merk", formData, {
+              headers: { "Content-Type": "multipart/form-data" },
+            });
+            const newData = response.data?.data;
+            resetForm();
+            await fetchDataMerk();
 
-          const newData = response.data?.data;
-          resetForm();
-          await fetchDataMerk();
+            await Swal.fire({
+              icon: "success",
+              title: "Berhasil Ditambahkan!",
+              text: `Data merk berhasil ditambahkan.`,
+              timer: 1500,
+            }).then(() => setShowDialogMerk(false));
+          } else {
+            const response = await Api.put(
+              `/merk/${selectedRow.id}`,
+              formData,
+              {
+                headers: { "Content-Type": "multipart/form-data" },
+              }
+            );
+            const newData = response.data?.data;
+            resetForm();
+            await fetchDataMerk();
 
-          await Swal.fire({
-            icon: "success",
-            title: "Berhasil Ditambahkan!",
-            text: `Data merk dengan ID ${newData?.id} berhasil ditambahkan.`,
-            timer: 1500,
-          });
+            await Swal.fire({
+              icon: "success",
+              title: "Berhasil Diubah!",
+              text: `Data merk berhasil diubah`,
+              timer: 1500,
+            }).then(() => setShowDialogMerk(false));
+          }
         } catch (err) {
           await Swal.fire({
             icon: "error",
             title: "Gagal",
-            text: "Terjadi kesalahan saat menambahkan data merk.",
+            text: `Terjadi kesalahan saat ${
+              selectedRow?.id ? "mengedit" : "menambahkan"
+            } data merk.`,
           });
 
-          setShowTambahData(true);
+          setShowDialogMerk(true);
         } finally {
           setLoadingUpload(false);
         }
@@ -417,7 +458,7 @@ const MerkPage = () => {
         confirmButtonText: "Oke",
       });
 
-      setShowTambahData(true);
+      setShowDialogMerk(true);
     }
   };
 
@@ -425,12 +466,10 @@ const MerkPage = () => {
     setSelectedFile(null);
   };
 
-  const handleCancelEditMerk = () => {
-    router.push("/merk");
-  };
-
   const handleEditMerk = (row: DataMerksProps) => {
+    setShowDialogMerk(true);
     setSelectedRow(row);
+    console.log(row);
     setNomorPermohonan(row.nomorPermohonan);
     setNomorPendaftaran(row.nomorPendaftaran);
     setSelectedStatusPendaftaran(
@@ -450,148 +489,14 @@ const MerkPage = () => {
           }
         : null
     );
-    setTanggalBerakhirPerlindungan(row.tanggalBerakhirPerlindungan);
+    setTanggalBerakhirPerlindungan(
+      formatToYMD(row.tanggalBerakhirPerlindungan)
+    );
 
-    // Set existing file untuk ditampilkan
-    if (row.eticket) {
-      setSelectedFile({
-        name: row.eticket,
-        size: 0, // Ukuran tidak diketahui dari backend
-        type: "image/png",
-        isExisting: true, // Flag untuk menandai ini file yang sudah ada
-      } as any);
-      setProgress(100); // Set progress ke 100% karena file sudah ada
-    } else {
-      setSelectedFile(null);
-    }
+    setOldFileName(row.eticket);
+    setProgress(100);
 
     setShowEditMerk(true);
-  };
-
-  const handleSimpanEditMerk = async () => {
-    setShowEditMerk(false);
-    if (
-      !selectedRow ||
-      !nomorPermohonan ||
-      !nomorPendaftaran ||
-      !selectedStatusPendaftaran ||
-      !tanggalBerakhirPerlindungan ||
-      !linkPdki ||
-      !selectedPemegangHaki
-    ) {
-      Swal.fire({
-        icon: "warning",
-        title: "Peringatan",
-        text: "Lengkapi semua form terlebih dahulu.",
-      }).then(() => {
-        setShowEditMerk(true);
-      });
-      return;
-    }
-
-    try {
-      const result = await Swal.fire({
-        icon: "question",
-        title: "Apakah data sudah benar?",
-        text: "Pastikan semua informasi sudah benar sebelum menyimpan perubahan.",
-        showCancelButton: true,
-        confirmButtonText: "Ya, simpan",
-        cancelButtonText: "Batal",
-      });
-
-      if (result.isDismissed) {
-        setShowEditMerk(true);
-        return;
-      }
-
-      if (result.isConfirmed) {
-        setLoadingUpload(true);
-
-        const formData = new FormData();
-        formData.append("nomorPermohonan", nomorPermohonan);
-        formData.append("nomorPendaftaran", nomorPendaftaran);
-        formData.append(
-          "statusPendaftaran",
-          selectedStatusPendaftaran.statusPendaftaran
-        );
-        formData.append(
-          "idStatusPendaftaran",
-          selectedStatusPendaftaran.idStatusPendaftaran
-        );
-        formData.append(
-          "tanggalBerakhirPerlindungan",
-          formatToYMD(tanggalBerakhirPerlindungan)
-        );
-        formData.append("linkPDKI", linkPdki);
-        formData.append("idPemegangHaki", selectedPemegangHaki.id);
-        formData.append("namaPemegangHaki", selectedPemegangHaki.nama);
-
-        if (
-          selectedFile &&
-          !(selectedFile as File & { isExisting?: boolean }).isExisting
-        ) {
-          formData.append("eticket", selectedFile);
-        }
-
-        // Debug log
-        console.log("=== DATA YANG DIKIRIM ===");
-        console.log("nomorPermohonan:", nomorPermohonan);
-        console.log("nomorPendaftaran:", nomorPendaftaran);
-        console.log("selectedStatusPendaftaran:", selectedStatusPendaftaran);
-        console.log(
-          "tanggalBerakhirPerlindungan:",
-          tanggalBerakhirPerlindungan
-        );
-        console.log("linkPdki:", linkPdki);
-        console.log("selectedPemegangHaki:", selectedPemegangHaki);
-        console.log("selectedFile:", selectedFile);
-
-        try {
-          const response = await Api.put(
-            `/merk/${selectedRow.id}`,
-            formData,
-            {}
-          );
-
-          console.log("Response:", response);
-
-          if (response.data?.responseCode === 200) {
-            await fetchDataMerk();
-            resetForm();
-            setSelectedFile(null);
-            setSelectedRow(null);
-            setShowEditMerk(false);
-
-            await Swal.fire({
-              icon: "success",
-              title: "Berhasil!",
-              text: "Data merk berhasil diperbarui.",
-              timer: 1500,
-              showConfirmButton: false,
-            });
-          } else {
-            throw new Error("Update gagal");
-          }
-        } catch (err) {
-          await Swal.fire({
-            icon: "error",
-            title: "Gagal",
-            text: "Gagal memperbarui data merk. Silakan coba lagi.",
-          });
-          setShowEditMerk(true);
-        } finally {
-          setLoadingUpload(false);
-        }
-      }
-    } catch (error) {
-      console.error("Error dalam proses edit:", error);
-      await Swal.fire({
-        icon: "error",
-        title: "ERROR",
-        text: "Terjadi kesalahan yang tidak terduga.",
-      });
-      setShowEditMerk(true);
-    }
   };
 
   const handleCancelUpdateMerk = () => {
@@ -843,10 +748,7 @@ const MerkPage = () => {
             variant="default"
             size="sm"
             className="ml-2 "
-            onClick={() => {
-              resetForm();
-              setShowTambahData(true);
-            }}
+            onClick={() => setShowDialogMerk(true)}
           >
             <Plus /> Tambah Data
           </Buttons>
@@ -1203,336 +1105,6 @@ const MerkPage = () => {
                       </DropdownMenuContent>
                     </DropdownMenu>
 
-                    {/* Dialog Edit Merk */}
-                    <Dialog open={showEditMerk} onOpenChange={setShowEditMerk}>
-                      <DialogContent className="sm:max-w-[788px] p-0">
-                        <DialogHeader>
-                          <DialogTitle className="bg-[#064263] text-white px-4 py-8 rounded-t-lg">
-                            Edit Merk
-                          </DialogTitle>
-                        </DialogHeader>
-                        <div className="grid grid-cols-2 gap-4 p-4">
-                          <div>
-                            <Labels
-                              htmlFor="no-permohonan"
-                              className="block text-sm font-medium mb-1"
-                            >
-                              Nomor Permohonan
-                              <span className="text-red-500 ml-1">*</span>
-                            </Labels>
-                            <Inputs
-                              qa-input="input-edit-nomor-permohonan"
-                              type="text"
-                              placeholder="J002014046345"
-                              className="w-full border rounded px-2 py-1"
-                              value={nomorPermohonan}
-                              onChange={(e) =>
-                                setNomorPermohonan(e.target.value)
-                              }
-                            />
-                          </div>
-
-                          <div>
-                            <Labels
-                              htmlFor="no-pendaftaran"
-                              className="block text-sm font-medium mb-1"
-                            >
-                              Nomor Pendaftaran
-                              <span className="text-red-500 ml-1">*</span>
-                            </Labels>
-                            <Inputs
-                              qa-input="input-edit-nomor-pendaftaran"
-                              type="text"
-                              placeholder="IDM000550171"
-                              className="w-full border rounded px-2 py-1"
-                              value={nomorPendaftaran}
-                              onChange={(e) =>
-                                setNomorPendaftaran(e.target.value)
-                              }
-                            />
-                          </div>
-
-                          <div>
-                            <Labels
-                              htmlFor="status"
-                              className="block text-sm font-medium mb-1"
-                            >
-                              Status
-                              <span className="text-red-500 ml-1">*</span>
-                            </Labels>
-                            <Select
-                              qa-select="edit-status-pendaftaran"
-                              onValueChange={(val) =>
-                                setSelectedStatusPendaftaran(JSON.parse(val))
-                              }
-                              value={
-                                selectedStatusPendaftaran
-                                  ? JSON.stringify(selectedStatusPendaftaran)
-                                  : ""
-                              }
-                            >
-                              <SelectTrigger
-                                className="w-full border rounded px-2 py-1"
-                                qa-select-trigger="select-edit-status-pendaftaran"
-                              >
-                                <SelectValue placeholder="Pilih status" />
-                              </SelectTrigger>
-
-                              <SelectContent>
-                                {listStatusPendaftaran?.map(
-                                  (status: StatusPendaftaran) => (
-                                    <SelectItem
-                                      key={status.idStatusPendaftaran}
-                                      value={JSON.stringify(status)}
-                                      qa-select-option={`select-edit-status-pendaftaran-${status.statusPendaftaran}`}
-                                    >
-                                      {status.statusPendaftaran}
-                                    </SelectItem>
-                                  )
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div>
-                            <Labels
-                              htmlFor="tanggal-berakhir-perlindungan"
-                              className="block text-sm font-medium mb-1"
-                            >
-                              Tanggal Berakhir Perlindungan
-                              <span className="text-red-500 ml-1">*</span>
-                            </Labels>
-                            <Popover
-                              open={openDatePicker}
-                              onOpenChange={setOpenDatePicker}
-                            >
-                              <PopoverTrigger asChild>
-                                <Button
-                                  qa-btn="select-edit-tanggal-berakhir-perlindungan"
-                                  variant="outline"
-                                  className="w-full justify-between font-normal"
-                                >
-                                  {tanggalBerakhirPerlindungan
-                                    ? formatToDMY(tanggalBerakhirPerlindungan)
-                                    : "Masukkan tanggal berakhir perlindungan"}
-
-                                  <ChevronDownIcon className="ml-2 h-4 w-4 opacity-50" />
-                                </Button>
-                              </PopoverTrigger>
-
-                              <PopoverContent
-                                className="w-auto p-0"
-                                align="start"
-                              >
-                                <Calendar
-                                  mode="single"
-                                  selected={
-                                    tanggalBerakhirPerlindungan
-                                      ? new Date(tanggalBerakhirPerlindungan)
-                                      : undefined
-                                  }
-                                  captionLayout="dropdown"
-                                  onSelect={(date) => {
-                                    if (date) {
-                                      setTanggalBerakhirPerlindungan(
-                                        date.toISOString().split("T")[0]
-                                      );
-                                    }
-                                    setOpenDatePicker(false);
-                                  }}
-                                />
-                              </PopoverContent>
-                            </Popover>
-                          </div>
-
-                          <div>
-                            <Labels
-                              htmlFor="link-pdki"
-                              className="block text-sm font-medium mb-1"
-                            >
-                              Link PDKI
-                              <span className="text-red-500 ml-1">*</span>
-                            </Labels>
-                            <Inputs
-                              qa-input="input-edit-link-pdki"
-                              type="text"
-                              placeholder="https://simonhaki.pnm.co.id"
-                              className="w-full border rounded px-2 py-1"
-                              value={linkPdki}
-                              onChange={(e) => setLinkPdki(e.target.value)}
-                            />
-                          </div>
-
-                          <div>
-                            <Labels
-                              htmlFor="nama-pemegang-haki"
-                              className="block text-sm font-medium mb-1"
-                            >
-                              Nama Pemegang HAKI
-                              <span className="text-red-500 ml-1">*</span>
-                            </Labels>
-                            <Select
-                              qa-select="edit-nama-pemegang-haki"
-                              onValueChange={(val) =>
-                                setSelectedPemegangHaki(JSON.parse(val))
-                              }
-                              value={
-                                selectedPemegangHaki
-                                  ? JSON.stringify(selectedPemegangHaki)
-                                  : ""
-                              }
-                            >
-                              <SelectTrigger
-                                className="w-full border rounded px-2 py-1"
-                                qa-select-trigger="select-edit-nama-pemegang-haki"
-                              >
-                                <SelectValue placeholder="Nama Pemegang HAKI" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {pemegangHakiList &&
-                                pemegangHakiList.length > 0 ? (
-                                  pemegangHakiList.map((item) => (
-                                    <SelectItem
-                                      key={item.id}
-                                      value={JSON.stringify(item)}
-                                      qa-select-option={`select-edit-nama-pemegang-haki-${item.nama}`}
-                                    >
-                                      {item.nama}
-                                    </SelectItem>
-                                  ))
-                                ) : (
-                                  <SelectItem value="loading" disabled>
-                                    Loading...
-                                  </SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          {/* E-TIKET MERK SECTION */}
-                          <div className="col-span-2">
-                            <Labels
-                              htmlFor="etiket-merk"
-                              className="block text-sm font-medium mb-1"
-                            >
-                              E-Tiket Merk{" "}
-                              <span className="text-red-500 ml-1">*</span>
-                            </Labels>
-
-                            {selectedFile ? (
-                              <div className="flex items-center justify-between w-full gap-4 border rounded-lg p-4">
-                                {/* KIRI: PREVIEW ICON + INFO FILE */}
-                                <div className="flex items-center gap-4">
-                                  <Image
-                                    src="/icon/png 1.svg"
-                                    alt="Logo Upload"
-                                    width={50}
-                                    height={50}
-                                  />
-
-                                  <div>
-                                    <p className="font-medium text-sm">
-                                      {selectedFile.name}
-                                    </p>
-                                    {selectedFile.size > 0 ? (
-                                      <p className="text-xs text-gray-500">
-                                        {(selectedFile.size / 1024).toFixed(2)}{" "}
-                                        KB
-                                      </p>
-                                    ) : (
-                                      <p className="text-xs text-gray-500">
-                                        File sudah terupload
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* KANAN: EDIT & DELETE + STATUS */}
-                                <div className="flex flex-col items-end">
-                                  <div className="flex items-center gap-2">
-                                    <Image
-                                      qa-btn="edit-file-etiket-merk"
-                                      src="/icon/edit-svgrepo-com 2.svg"
-                                      alt="Edit"
-                                      width={16}
-                                      height={16}
-                                      onClick={handleBrowseClick}
-                                      className="cursor-pointer text-[#888888] hover:text-[#064263]"
-                                      title="Ganti file"
-                                    />
-
-                                    <Image
-                                      qa-btn={`hapus-file-etiket-merk${nomorPermohonan}`}
-                                      src="/icon/Trash.svg"
-                                      alt="Delete"
-                                      width={16}
-                                      height={16}
-                                      onClick={handleHapusImages}
-                                      className="cursor-pointer text-[#888888] hover:text-red-500"
-                                      title="Hapus file"
-                                    />
-                                  </div>
-
-                                  <p className="text-xs text-green-600 font-medium mt-1">
-                                    ✓ Completed
-                                  </p>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="border rounded-lg p-4 text-center text-gray-400">
-                                <p className="text-sm">Tidak ada file</p>
-                                <Button
-                                  qa-btn="upload-file-etiket-merk"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={handleBrowseClick}
-                                  className="mt-2"
-                                >
-                                  Upload File
-                                </Button>
-                              </div>
-                            )}
-
-                            {/* INPUT FILE TERSEMBUNYI */}
-                            <input
-                              qa-input="input-etiket-merk-edit"
-                              ref={fileInputRef}
-                              type="file"
-                              accept=".png"
-                              onChange={(e) => handleFileChange(e)}
-                              className="hidden"
-                            />
-                          </div>
-                        </div>
-
-                        <DialogFooter className="p-4">
-                          <DialogClose asChild>
-                            <Buttons
-                              qa-btn="batal-edit-merk"
-                              variant="defaultSecond"
-                              size="sm"
-                              onClick={() => {
-                                handleCancelEditMerk();
-                                setSelectedFile(null);
-                              }}
-                              className="w-20 p-2"
-                            >
-                              Batal
-                            </Buttons>
-                          </DialogClose>
-                          <Buttons
-                            qa-btn="simpan-edit-merk"
-                            variant="default"
-                            size="sm"
-                            onClick={() => handleSimpanEditMerk()}
-                            className="w-40 ml-2 p-2"
-                          >
-                            Simpan Perubahan
-                          </Buttons>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-
                     {/* Dialog Update Pembaruan */}
                     <Dialog
                       open={showUpdatePembaruan}
@@ -1670,11 +1242,11 @@ const MerkPage = () => {
       </Table>
 
       {/* Dialog Tambah Data Merk */}
-      <Dialog open={showTambahData} onOpenChange={setShowTambahData}>
+      <Dialog open={showDialogMerk} onOpenChange={setShowDialogMerk}>
         <DialogContent className="sm:max-w-[788px] p-0">
           <DialogHeader>
             <DialogTitle className="bg-[#064263] text-white rounded-t-lg">
-              Tambah Data Merk
+              {selectedRow ? "Edit Merk" : "Tambah Data Merk"}
             </DialogTitle>
             <div className="grid grid-cols-2 gap-4 p-4">
               <div>
@@ -1780,8 +1352,14 @@ const MerkPage = () => {
                       captionLayout="dropdown"
                       onSelect={(date) => {
                         if (date) {
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(
+                            2,
+                            "0"
+                          );
+                          const day = String(date.getDate()).padStart(2, "0");
                           setTanggalBerakhirPerlindungan(
-                            date.toISOString().split("T")[0]
+                            `${year}-${month}-${day}`
                           );
                         }
                         setOpenDatePicker(false);
@@ -1817,7 +1395,7 @@ const MerkPage = () => {
                   qa-select="nama-pemegang-haki"
                   onValueChange={(val) => {
                     const selected = JSON.parse(val);
-                    setSelectedPemegangHaki(selected); // Simpan object lengkap
+                    setSelectedPemegangHaki(selected);
                   }}
                   value={
                     selectedPemegangHaki
@@ -1876,47 +1454,81 @@ const MerkPage = () => {
                     validateAndSetFiles(e.dataTransfer.files);
                   }}
                 >
-                  {/* --- ICON UPLOAD DI BAGIAN ATAS --- */}
-                  <div>
-                    {!selectedFile && (
-                      <div className="w-full my-4 flex items-center justify-center">
+                  {/* File sudah ada */}
+                  {selectedRow && selectedRow.eticket ? (
+                    <div className="flex items-center justify-between w-full gap-4">
+                      <div className="flex items-center gap-4">
                         <Image
                           src="/icon/png 1.svg"
-                          alt="Logo Upload"
                           width={50}
                           height={50}
-                          className="flex items-center justify-center"
+                          alt="Uploaded"
                         />
-                      </div>
-                    )}
-                  </div>
 
-                  {/* --- SAAT UPLOAD BERLANGSUNG --- */}
-                  <div className="w-full">
-                    {loadingUpload ? (
-                      <div className="w-full flex flex-col items-center gap-2">
-                        <Progress
-                          value={progress}
-                          className="w-[60%] h-2 rounded-full bg-gray-200 [&>div]:bg-green-500 [&>div]:transition-all [&>div]:duration-300"
-                        />
-                        <p className="text-sm text-gray-600 font-medium mt-1">
-                          {progress}%
-                        </p>
+                        <div>
+                          <p className="font-medium">{selectedRow.eticket}</p>
+                          <p className="text-xs text-gray-500">
+                            File already uploaded
+                          </p>
+                        </div>
                       </div>
-                    ) : selectedFile ? (
-                      <>
-                        {/* --- SAAT UPLOAD SELESAI --- */}
+
+                      <div className="flex items-center gap-3">
+                        <Image
+                          src="/icon/edit-svgrepo-com 2.svg"
+                          width={16}
+                          height={16}
+                          alt="Edit"
+                          onClick={handleBrowseClick}
+                          className="cursor-pointer"
+                        />
+
+                        <Image
+                          src="/icon/Trash.svg"
+                          width={16}
+                          height={16}
+                          alt="Delete"
+                          onClick={handleHapusImages}
+                          className="cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Belum ada file*/}
+                      {!selectedFile && !loadingUpload && (
+                        <div className="w-full my-4 flex items-center justify-center">
+                          <Image
+                            src="/icon/png 1.svg"
+                            alt="Upload"
+                            width={50}
+                            height={50}
+                          />
+                        </div>
+                      )}
+
+                      {/* On Progres */}
+                      {loadingUpload ? (
+                        <div className="w-full flex flex-col items-center gap-2">
+                          <Progress
+                            value={progress}
+                            className="w-[60%] h-2 rounded-full bg-gray-200 [&>div]:bg-green-500 transition-all"
+                          />
+                          <p className="text-sm text-gray-600 font-medium mt-1">
+                            {progress}%
+                          </p>
+                        </div>
+                      ) : selectedFile ? (
+                        /* File sudah ada */
                         <div className="flex items-center justify-between w-full gap-4">
-                          {/* ICON */}
                           <div className="flex items-center gap-4">
                             <Image
                               src="/icon/png 1.svg"
-                              alt="Logo Upload"
                               width={50}
                               height={50}
+                              alt="Uploaded"
                             />
 
-                            {/* NAMA FILE + SIZE */}
                             <div>
                               <p className="font-medium">{selectedFile.name}</p>
                               <p className="text-xs text-gray-500">
@@ -1925,36 +1537,27 @@ const MerkPage = () => {
                             </div>
                           </div>
 
-                          {/* HAPUS */}
-                          <div>
-                            <div className="flex items-center">
-                              <Image
-                                src="/icon/edit-svgrepo-com 2.svg"
-                                alt="Logo Upload"
-                                width={16}
-                                height={16}
-                                onClick={handleBrowseClick}
-                                className="text-[#888888]"
-                              />
-                              <Image
-                                src="/icon/Trash.svg"
-                                alt="Logo Upload"
-                                width={16}
-                                height={16}
-                                onClick={handleHapusImages}
-                                className="cursor-pointer text-[#888888]"
-                              />
-                            </div>
-
-                            <p className="text-sm text-gray-600 font-medium mt-1">
-                              {progress}%
-                            </p>
+                          <div className="flex items-center">
+                            <Image
+                              src="/icon/edit-svgrepo-com 2.svg"
+                              width={16}
+                              height={16}
+                              alt="Edit"
+                              onClick={handleBrowseClick}
+                              className="cursor-pointer"
+                            />
+                            <Image
+                              src="/icon/Trash.svg"
+                              width={16}
+                              height={16}
+                              alt="Delete"
+                              onClick={handleHapusImages}
+                              className="cursor-pointer"
+                            />
                           </div>
                         </div>
-                      </>
-                    ) : (
-                      <>
-                        {/* --- DEFAULT STATE (BELUM UPLOAD) --- */}
+                      ) : (
+                        /* default ketika belum upload file */
                         <div className="flex flex-col justify-center text-center">
                           <p className="text-gray-600">
                             <a
@@ -1971,9 +1574,9 @@ const MerkPage = () => {
                             Max File Size: 2MB (.png)
                           </p>
                         </div>
-                      </>
-                    )}
-                  </div>
+                      )}
+                    </>
+                  )}
 
                   {/* --- INPUT FILE TERSEMBUNYI --- */}
                   <input
@@ -1994,7 +1597,7 @@ const MerkPage = () => {
                 qa-btn="batal-tambah-data-merk"
                 variant="defaultSecond"
                 size="sm"
-                onClick={() => handleCancelTambahData()}
+                onClick={() => handleCancelDialogMerk()}
                 className="w-20 p-2 mr-2"
               >
                 Batal
@@ -2005,7 +1608,7 @@ const MerkPage = () => {
               variant="default"
               size="sm"
               disabled={!isFormValid}
-              onClick={() => handleSimpanTambahData()}
+              onClick={() => handleSimpanDialogMerk()}
               className={`w-40 p-2 text-white ${
                 !isFormValid
                   ? "opacity-50 cursor-not-allowed"
