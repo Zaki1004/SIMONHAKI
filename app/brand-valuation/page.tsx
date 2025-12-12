@@ -41,32 +41,45 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import Api from "@/services/api";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@radix-ui/react-dropdown-menu";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { MoreHorizontalIcon, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowDownWideNarrow,
+  ArrowUpDown,
+  ArrowUpWideNarrow,
+  ChevronDownIcon,
+  MoreHorizontalIcon,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import Swal from "sweetalert2";
 
 type DataBrandValuationProps = {
-  namaBrand: string;
-  brandValuation: string;
-  pemegangHAKI: string;
+  ID: string;
+  NamaBrand: string;
+  BrandValuation: string;
+  IdPemegangHaki: string;
+  NamaPemegangHaki: string;
 };
 
-interface Nama {
-  value: string;
-  code: string;
+interface PemegangHAKIProps {
+  nama: string;
+  id: string;
 }
+type SortField = keyof DataBrandValuationProps | null;
 
 const BrandValuationPage = () => {
   const [showEditBrandValuation, setShowEditBrandValuation] = useState(false);
   const [showHapusBrandValuation, setShowHapusBrandValuation] = useState(false);
-  const [showTambahData, setShowTambahData] = useState(false);
-  const [value, setValue] = useState("");
+  const [showDialogBrandValuation, setShowDialogBrandValuation] =
+    useState(false);
   const router = useRouter();
   const [namaBrand, setNamaBrand] = useState("");
   const [brandValuation, setBrandValuation] = useState("");
@@ -74,76 +87,320 @@ const BrandValuationPage = () => {
   const [search, setSearch] = useState("");
   const [perPage, setPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalData, setTotalData] = useState(0);
+  const [totalPage, setTotalPage] = useState(0);
+  const [selectedRow, setSelectedRow] =
+    useState<DataBrandValuationProps | null>(null);
+  const [dataTableBrandValuation, setDataTableBrandValuation] = useState<
+    DataBrandValuationProps[]
+  >([]);
+  const [loadingPemegangHaki, setLoadingPemegangHaki] = useState(false);
+  const [selectedPemegangHaki, setSelectedPemegangHaki] =
+    useState<PemegangHAKIProps | null>(null);
+  const [pemegangHakiList, setPemegangHakiList] = useState<PemegangHAKIProps[]>(
+    []
+  );
 
-  const isFormValid = namaBrand && brandValuation && namaPemegangHaki;
+  const [sortConfig, setSortConfig] = useState<{
+    key: SortField;
+    direction: "asc" | "desc";
+  }>({
+    key: null,
+    direction: "asc",
+  });
 
-  const handleSearch = (value: string) => {
-    setSearch(value);
+  const handleSort = (key: SortField) => {
+    let direction: "asc" | "desc" = "asc";
+
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
   };
 
-  const handleSimpanTambahData = () => {
-    const newData: DataBrandValuationProps = {
-      namaBrand: namaBrand,
-      brandValuation: brandValuation,
-      pemegangHAKI: namaPemegangHaki,
-    };
+  const isFormValid = namaBrand && brandValuation && selectedPemegangHaki;
 
-    setDataTableBrandValuation((prev) => [...prev, newData]);
-
-    setShowTambahData(false);
-
+  const resetForm = () => {
+    setSelectedRow(null);
     setNamaBrand("");
     setBrandValuation("");
     setNamaPemegangHaki("");
   };
 
-  const handleCancelTambahData = () => {
-    router.push("/brand-valuation");
+  const fetchPemegangHaki = async () => {
+    setLoadingPemegangHaki(true);
+    try {
+      const response = await Api.get("/pemegang-haki/getAll");
+      const result = response.data?.data;
+      setPemegangHakiList(Array.isArray(result) ? result : []);
+      console.log("Data yang akan di-set:", result);
+    } catch (error) {
+      console.error("Error fetching pemegang HAKI:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Gagal mengambil data pemegang HAKI",
+      });
+    } finally {
+    }
   };
 
-  const handleCancelEditBrandValuation = () => {
-    router.push("/brand-valuation");
+  const fetchDataBrandValuation = async () => {
+    try {
+      const res = await Api.get(
+        `/brand-valuation?search=${encodeURIComponent(
+          search
+        )}&page=${currentPage}&limit=${perPage}`
+      );
+
+      const result = res.data?.data?.data;
+      const totalData = res.data?.data?.totalData || 0;
+      const totalPage =
+        totalData && perPage ? Math.ceil(totalData / perPage) : 1;
+
+      setDataTableBrandValuation(result);
+      setTotalData(totalData);
+      setTotalPage(totalPage);
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Gagal mengambil data BrandValuation",
+      });
+    }
   };
 
-  const handleSimpanEditBrandValuation = () => {
+  useEffect(() => {
+    fetchDataBrandValuation();
+    fetchPemegangHaki();
+  }, [search, currentPage, perPage]);
+
+  const handleCancelDialogBrandValuation = () => {
+    resetForm();
     setShowEditBrandValuation(false);
-    router.push("/brand-valuation");
+  };
+
+  const handleSimpanDialogBrandValuation = async () => {
+    setShowDialogBrandValuation(false);
+    if (!namaBrand || !brandValuation || !selectedPemegangHaki) {
+      Swal.fire({
+        icon: "warning",
+        title: "Peringatan",
+        text: "Lengkapi semua form terlebih dahulu.",
+      });
+      return;
+    } else {
+      setShowDialogBrandValuation(true);
+    }
+
+    try {
+      setShowDialogBrandValuation(false);
+      const result = await Swal.fire({
+        icon: "question",
+        title: "Apakah data sudah benar?",
+        text: `Pastikan semua informasi sudah benar sebelum ${
+          selectedRow?.ID ? "mengedit" : "menambahkan"
+        } data.`,
+        showCancelButton: true,
+        confirmButtonText: "Ya, simpan data",
+        cancelButtonText: "Batal",
+      });
+
+      if (result.isDismissed) {
+        setShowDialogBrandValuation(true);
+        return;
+      }
+
+      if (result.isConfirmed) {
+        const body = {
+          namaBrand: namaBrand,
+          brandValuation: brandValuation,
+          namaPemegangHaki: selectedPemegangHaki.nama,
+          idPemegangHaki: selectedPemegangHaki.id,
+        };
+
+        try {
+          if (!selectedRow?.ID) {
+            await Api.post("/brand-valuation", body);
+
+            resetForm();
+            await fetchDataBrandValuation();
+
+            await Swal.fire({
+              icon: "success",
+              title: "Berhasil Ditambahkan!",
+              text: `Data BrandValuation berhasil ditambahkan.`,
+              timer: 1500,
+            }).then(() => setShowDialogBrandValuation(false));
+          } else {
+            await Api.put(`/brand-valuation/${selectedRow.ID}`, body);
+
+            resetForm();
+            await fetchDataBrandValuation();
+
+            await Swal.fire({
+              icon: "success",
+              title: "Berhasil Diubah!",
+              text: `Data BrandValuation berhasil diubah`,
+              timer: 1500,
+            }).then(() => setShowDialogBrandValuation(false));
+          }
+        } catch (err) {
+          await Swal.fire({
+            icon: "error",
+            title: "Gagal",
+            text: `Terjadi kesalahan saat ${
+              selectedRow?.ID ? "mengedit" : "menambahkan"
+            } data BrandValuation.`,
+          });
+
+          setShowDialogBrandValuation(true);
+        } finally {
+        }
+      }
+    } catch (error) {
+      console.error("Error dalam proses tambah data:", error);
+
+      await Swal.fire({
+        icon: "error",
+        title: "ERROR",
+        text: "Terjadi kesalahan yang tidak terduga.",
+        confirmButtonText: "Oke",
+      });
+
+      setShowDialogBrandValuation(true);
+    }
+  };
+
+  const handleEditBrandValuation = (row: DataBrandValuationProps) => {
+    setShowDialogBrandValuation(true);
+    setSelectedRow(row);
+    setNamaBrand(row.NamaBrand);
+    setBrandValuation(row.BrandValuation);
+    setSelectedPemegangHaki(
+      row.NamaPemegangHaki && row.IdPemegangHaki
+        ? {
+            id: row.IdPemegangHaki,
+            nama: row.NamaPemegangHaki,
+          }
+        : null
+    );
+
+    setShowEditBrandValuation(true);
   };
 
   const handleCancelHapusBrandValuation = () => {
     router.push("/brand-valuation");
   };
 
-  const handleSimpanHapusBrandValuation = () => {
+  const handleSimpanHapusBrandValuation = async () => {
     setShowHapusBrandValuation(false);
-    router.push("/brand-valuation");
+
+    if (!selectedRow) {
+      Swal.fire({
+        icon: "warning",
+        title: "Peringatan",
+        text: "Pilih data Brand Valuation yang ingin dihapus terlebih dahulu.",
+      }).then(() => {});
+      return;
+    }
+    console.log(!selectedRow);
+
+    try {
+      const result = await Swal.fire({
+        icon: "warning",
+        title: "Konfirmasi Hapus",
+        text: `Apakah Anda yakin ingin menghapus Brand Valuation dengan nomor permohonan ${selectedRow.NamaBrand}?`,
+        showCancelButton: true,
+        confirmButtonText: "Ya, Hapus",
+        cancelButtonText: "Batal",
+        confirmButtonColor: "#DC3545",
+        cancelButtonColor: "#6c757d",
+      });
+
+      if (result.isDismissed) {
+        setShowHapusBrandValuation(true);
+        return;
+      }
+
+      if (result.isConfirmed) {
+        const response = await Api.delete(`/brand-valuation/${selectedRow.ID}`);
+
+        if (response.data?.responseCode === 200) {
+          setDataTableBrandValuation((prevData) =>
+            prevData.filter((item) => item.ID !== selectedRow.ID)
+          );
+
+          await fetchDataBrandValuation();
+          setSelectedRow(null);
+
+          Swal.fire({
+            icon: "success",
+            title: "Berhasil Dihapus!",
+            text: `Data BrandValuation ${selectedRow.NamaBrand} berhasil dihapus dari tabel.`,
+            timer: 1500,
+            showConfirmButton: false,
+          });
+        } else {
+          throw new Error("Hapus gagal");
+        }
+      }
+    } catch (error) {
+      console.error("Error saat menghapus:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Gagal",
+        text: "Gagal menghapus data BrandValuation. Silakan coba lagi.",
+      });
+
+      setShowHapusBrandValuation(true);
+    }
   };
 
-  const pemegangHaki: Nama[] = [
-    { value: "Atiqa Zaviera", code: "AZA" },
-    { value: "Zaviera Atiqa", code: "ZAA" },
-  ];
+  const sortedData = useMemo(() => {
+    if (!sortConfig.key) return dataTableBrandValuation;
 
-  const [dataTableBrandValuation, setDataTableBrandValuation] = useState<
-    DataBrandValuationProps[]
-  >([
-    {
-      namaBrand: "Red-Flower",
-      brandValuation: "Bunga",
-      pemegangHAKI: "Atiqa Zaviera",
-    },
-  ]);
+    return [...dataTableBrandValuation].sort((a, b) => {
+      const x = a[sortConfig.key!];
+      const y = b[sortConfig.key!];
 
-  // Hitung total halaman
-  const totalPages = Math.ceil(dataTableBrandValuation.length / perPage);
-  // Disable prev/next
+      // if (sortConfig.key === "status") {
+      //   const labelX =
+      //     typeof x === "object" && x !== null && "label" in x
+      //       ? (x as StatusPendaftaran).statusPendaftaran ?? ""
+      //       : typeof x === "string"
+      //       ? x
+      //       : "";
+      //   const labelY =
+      //     typeof y === "object" && y !== null && "label" in y
+      //       ? (y as StatusPendaftaran).statusPendaftaran ?? ""
+      //       : typeof y === "string"
+      //       ? y
+      //       : "";
+
+      //   return sortConfig.direction === "asc"
+      //     ? labelX.localeCompare(labelY)
+      //     : labelY.localeCompare(labelX);
+      // }
+      // handle string
+      if (typeof x === "string" && typeof y === "string") {
+        return sortConfig.direction === "asc"
+          ? x.localeCompare(y)
+          : y.localeCompare(x);
+      }
+      // handle number
+      if (typeof x === "number" && typeof y === "number") {
+        return sortConfig.direction === "asc" ? x - y : y - x;
+      }
+
+      return 0;
+    });
+  }, [sortConfig, dataTableBrandValuation]);
+
   const isFirstPage = currentPage === 1;
-  const isLastPage = currentPage === totalPages || totalPages === 0;
-  // Data yang ditampilkan sesuai halaman
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return dataTableBrandValuation.slice(start, start + perPage);
-  }, [currentPage, perPage, dataTableBrandValuation]);
+  const isLastPage = currentPage === totalPage || totalPage === 0;
 
   return (
     <>
@@ -155,13 +412,21 @@ const BrandValuationPage = () => {
             value={search}
             placeholder="Cari Brand Evaluation"
             className="rounded-md w-[287px] px-2"
-            onChange={(e) => handleSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                fetchDataBrandValuation();
+              }
+            }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
           />
           <Buttons
             variant="default"
             size="sm"
             className="ml-2"
-            onClick={() => setShowTambahData(true)}
+            onClick={() => setShowDialogBrandValuation(true)}
           >
             <Plus /> Tambah Data
           </Buttons>
@@ -170,28 +435,96 @@ const BrandValuationPage = () => {
       <Table className="bg-white m-5 rounded-xl w-full">
         <TableHeader>
           <TableRow>
-            <TableHead>Nama Brand</TableHead>
-            <TableHead>Brand Valuation</TableHead>
-            <TableHead>Pemegang HAKI</TableHead>
+            <TableHead>
+              {" "}
+              <Buttons
+                qa-btn="sorting-judul-paten"
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("NamaBrand");
+                }}
+                className="flex items-center"
+              >
+                Nama Brand
+                <span>
+                  {sortConfig.key !== "NamaBrand" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+            <TableHead>
+              {" "}
+              <Buttons
+                qa-btn="sorting-judul-paten"
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("BrandValuation");
+                }}
+                className="flex items-center"
+              >
+                Brand Valuation
+                <span>
+                  {sortConfig.key !== "BrandValuation" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+            <TableHead>
+              <Buttons
+                qa-btn="sorting-nama-pemegang-haki"
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("NamaPemegangHaki");
+                }}
+                className="flex items-center"
+              >
+                Pemegang HAKI
+                <span>
+                  {sortConfig.key !== "NamaPemegangHaki" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
             <TableHead className="w-[100px] text-center">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {paginatedData.length === 0 ? (
+          {sortedData.length === 0 ? (
             <TableRow>
               <TableCell colSpan={10} className="text-center py-8">
                 Tidak ada data
               </TableCell>
             </TableRow>
           ) : (
-            paginatedData.map((item) => {
-              const { namaBrand, brandValuation, pemegangHAKI } = item;
+            sortedData.map((item, rowIndex) => {
+              const { NamaBrand, BrandValuation, NamaPemegangHaki } = item;
 
               return (
-                <TableRow key={namaBrand}>
-                  <TableCell>{brandValuation}</TableCell>
-                  <TableCell>{pemegangHAKI}</TableCell>
-                  <TableCell>{pemegangHAKI}</TableCell>
+                <TableRow key={NamaBrand}>
+                  <TableCell>{NamaBrand}</TableCell>
+                  <TableCell>{BrandValuation}</TableCell>
+                  <TableCell>{NamaPemegangHaki}</TableCell>
                   <TableCellAction>
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
@@ -206,7 +539,7 @@ const BrandValuationPage = () => {
                       <DropdownMenuContent className="w-45" align="end">
                         <DropdownMenuGroup className="space-y-1">
                           <DropdownMenuItem
-                            onSelect={() => setShowEditBrandValuation(true)}
+                            onSelect={() => handleEditBrandValuation(item)}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
                             <div className="text-sm hover:font-semibold">
@@ -219,7 +552,10 @@ const BrandValuationPage = () => {
                           >
                             <div
                               className="text-sm hover:font-semibold"
-                              onClick={() => setShowHapusBrandValuation(true)}
+                              onClick={() => {
+                                setShowHapusBrandValuation(true);
+                                setSelectedRow(item);
+                              }}
                             >
                               Hapus Brand Valuation
                             </div>
@@ -227,103 +563,6 @@ const BrandValuationPage = () => {
                         </DropdownMenuGroup>
                       </DropdownMenuContent>
                     </DropdownMenu>
-
-                    {/* Dialog Edit Brand Valuation */}
-                    <Dialog
-                      open={showEditBrandValuation}
-                      onOpenChange={setShowEditBrandValuation}
-                    >
-                      <DialogContent className="sm:max-w-[788px] h-[350px] p-0">
-                        <DialogHeader>
-                          <DialogTitle className="bg-[#064263] text-white rounded-t-lg">
-                            Edit Brand Valuation
-                          </DialogTitle>
-                          <div className="grid grid-cols-2 grid-rows-2 gap-4 p-4">
-                            <div className="col-span-2">
-                              <Labels
-                                htmlFor="nama-brand"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Nama Brand
-                                <span className="text-red-500 ml-2">*</span>
-                              </Labels>
-                              <Inputs
-                                type="text"
-                                placeholder="Red-Flower"
-                                className="w-full border rounded px-2 py-1"
-                                onChange={(e) => setValue(e.target.value)}
-                              />
-                            </div>
-
-                            <div>
-                              <Labels
-                                htmlFor="brand-valuation"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Brand Valuation
-                                <span className="text-red-500 ml-2">*</span>
-                              </Labels>
-                              <Inputs
-                                type="text"
-                                placeholder="Bunga"
-                                className="w-full border rounded px-2 py-1"
-                                onChange={(e) => setValue(e.target.value)}
-                              />
-                            </div>
-
-                            <div>
-                              <Labels
-                                htmlFor="nama-pemegang-haki"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Nama Pemegang HAKI
-                                <span className="text-red-500 ml-2">*</span>
-                              </Labels>
-                              <Select
-                                onValueChange={(val) =>
-                                  setNamaPemegangHaki(val)
-                                }
-                                value={namaPemegangHaki}
-                              >
-                                <SelectTrigger className="w-full border rounded px-2 py-1">
-                                  <SelectValue placeholder="Pilih nama pemegang HAKI" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {pemegangHaki.map((nama) => (
-                                    <SelectItem
-                                      key={nama.value}
-                                      value={nama.value}
-                                    >
-                                      {nama.value}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        </DialogHeader>
-                        <DialogFooter className="p-4">
-                          <DialogClose asChild>
-                            <Buttons
-                              variant="defaultSecond"
-                              size="sm"
-                              onClick={() => handleCancelEditBrandValuation()}
-                              className="w-20 p-2"
-                            >
-                              Batal
-                            </Buttons>
-                          </DialogClose>
-                          <Buttons
-                            variant="default"
-                            size="sm"
-                            onClick={() => handleSimpanEditBrandValuation()}
-                            className="w-40 ml-2 p-2"
-                          >
-                            Simpan Perubahan
-                          </Buttons>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
 
                     <Dialog
                       open={showHapusBrandValuation}
@@ -386,11 +625,16 @@ const BrandValuationPage = () => {
           )}
         </TableBody>
       </Table>
-      <Dialog open={showTambahData} onOpenChange={setShowTambahData}>
+      <Dialog
+        open={showDialogBrandValuation}
+        onOpenChange={setShowDialogBrandValuation}
+      >
         <DialogContent className="sm:max-w-[788px] p-0">
           <DialogHeader>
             <DialogTitle className="bg-[#064263] text-white rounded-t-lg">
-              Tambah Brand Valuation
+              {selectedRow
+                ? "Edit Brand Valuation"
+                : "Tambah Data Brand Valuation"}
             </DialogTitle>
             <div className="grid grid-cols-2 gap-4 p-4">
               <div className="col-span-2">
@@ -404,6 +648,7 @@ const BrandValuationPage = () => {
                   type="text"
                   placeholder="Masukan nama brand"
                   className="w-full border rounded px-2 py-1"
+                  value={namaBrand}
                   onChange={(e) => setNamaBrand(e.target.value)}
                 />
               </div>
@@ -418,6 +663,7 @@ const BrandValuationPage = () => {
                   type="text"
                   placeholder="Masukan brand valuation"
                   className="w-full border rounded px-2 py-1"
+                  value={brandValuation}
                   onChange={(e) => setBrandValuation(e.target.value)}
                 />
               </div>
@@ -430,18 +676,39 @@ const BrandValuationPage = () => {
                   Nama Pemegang HAKI<span className="text-red-500 ml-2">*</span>
                 </Labels>
                 <Select
-                  onValueChange={(val) => setNamaPemegangHaki(val)}
-                  value={namaPemegangHaki}
+                  qa-select="nama-pemegang-haki"
+                  onValueChange={(val) => {
+                    const selected = JSON.parse(val);
+                    setSelectedPemegangHaki(selected);
+                  }}
+                  value={
+                    selectedPemegangHaki
+                      ? JSON.stringify(selectedPemegangHaki)
+                      : ""
+                  }
                 >
-                  <SelectTrigger className="w-full border rounded px-2 py-1">
+                  <SelectTrigger
+                    className="w-full border rounded px-2 py-1"
+                    qa-select-trigger="select-nama-pemegang-haki"
+                  >
                     <SelectValue placeholder="Pilih nama pemegang HAKI" />
                   </SelectTrigger>
                   <SelectContent>
-                    {pemegangHaki.map((nama) => (
-                      <SelectItem key={nama.value} value={nama.value}>
-                        {nama.value}
+                    {pemegangHakiList && pemegangHakiList.length > 0 ? (
+                      pemegangHakiList.map((item) => (
+                        <SelectItem
+                          key={item.id}
+                          value={JSON.stringify(item)}
+                          qa-select-option={`select-nama-pemegang-haki-${item.nama}`}
+                        >
+                          {item.nama}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="loading" disabled>
+                        Loading...
                       </SelectItem>
-                    ))}
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -452,7 +719,7 @@ const BrandValuationPage = () => {
               <Buttons
                 variant="defaultSecond"
                 size="sm"
-                onClick={() => handleCancelTambahData()}
+                onClick={() => handleCancelDialogBrandValuation()}
                 className="w-20 p-2"
               >
                 Batal
@@ -462,7 +729,7 @@ const BrandValuationPage = () => {
               variant="default"
               size="sm"
               disabled={!isFormValid}
-              onClick={() => handleSimpanTambahData()}
+              onClick={() => handleSimpanDialogBrandValuation()}
               className="w-40 ml-2 p-2"
             >
               Simpan Perubahan
@@ -477,6 +744,7 @@ const BrandValuationPage = () => {
           <span>Show</span>
 
           <select
+            qa-select="per-page"
             className="border rounded-md px-2 py-1 bg-white"
             value={perPage}
             onChange={(e: ChangeEvent<HTMLSelectElement>) => {
@@ -485,9 +753,15 @@ const BrandValuationPage = () => {
               setCurrentPage(1);
             }}
           >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
+            <option value={10} qa-select-option="10">
+              10
+            </option>
+            <option value={25} qa-select-option="25">
+              25
+            </option>
+            <option value={50} qa-select-option="50">
+              50
+            </option>
           </select>
 
           <span>entries</span>
@@ -497,29 +771,75 @@ const BrandValuationPage = () => {
         <div className="flex justify-center py-4">
           <Pagination>
             <PaginationContent>
-              {/* PREVIOUS */}
+              {/* DOUBLE ARROW LEFT - KE HALAMAN PERTAMA */}
               <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={() => !isFirstPage && setCurrentPage((p) => p - 1)}
+                <Button
+                  qa-btn="first-page"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={isFirstPage}
                   className={
                     isFirstPage ? "pointer-events-none opacity-40" : ""
                   }
-                />
+                >
+                  <span className="flex">
+                    <ChevronDownIcon className="h-4 w-4 rotate-90" />
+                    <ChevronDownIcon className="h-4 w-4 rotate-90 -ml-2" />
+                  </span>
+                </Button>
               </PaginationItem>
 
-              {/* NOMOR HALAMAN - HANYA TAMPIL HALAMAN SAAT INI */}
-              <PaginationItem className="rounded-lg text-white text-sm bg-[#006694] text-center px-3 py-2">
-                {currentPage}
-              </PaginationItem>
-
-              {/* NEXT */}
+              {/* SINGLE ARROW LEFT - PREVIOUS */}
               <PaginationItem>
-                <PaginationNext
-                  href="#"
+                <Button
+                  qa-btn="prev-table"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => !isFirstPage && setCurrentPage((p) => p - 1)}
+                  disabled={isFirstPage}
+                  className={
+                    isFirstPage ? "pointer-events-none opacity-40" : ""
+                  }
+                >
+                  <ChevronDownIcon className="h-4 w-4 rotate-90" />
+                </Button>
+              </PaginationItem>
+
+              {/* NOMOR HALAMAN SAAT INI */}
+              <PaginationItem className="rounded-lg text-white text-sm bg-[#006694] text-center px-4 py-2 mx-2">
+                {currentPage} / {totalPage}
+              </PaginationItem>
+
+              {/* SINGLE ARROW RIGHT - NEXT */}
+              <PaginationItem>
+                <Button
+                  qa-btn="next-table"
+                  variant="outline"
+                  size="icon"
                   onClick={() => !isLastPage && setCurrentPage((p) => p + 1)}
+                  disabled={isLastPage}
                   className={isLastPage ? "pointer-events-none opacity-40" : ""}
-                />
+                >
+                  <ChevronDownIcon className="h-4 w-4 -rotate-90" />
+                </Button>
+              </PaginationItem>
+
+              {/* DOUBLE ARROW RIGHT - KE HALAMAN TERAKHIR */}
+              <PaginationItem>
+                <Button
+                  qa-btn="last-page"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(totalPage)}
+                  disabled={isLastPage}
+                  className={isLastPage ? "pointer-events-none opacity-40" : ""}
+                >
+                  <span className="flex">
+                    <ChevronDownIcon className="h-4 w-4 -rotate-90" />
+                    <ChevronDownIcon className="h-4 w-4 -rotate-90 -ml-2" />
+                  </span>
+                </Button>
               </PaginationItem>
             </PaginationContent>
           </Pagination>

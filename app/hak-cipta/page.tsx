@@ -24,8 +24,6 @@ import {
   Pagination,
   PaginationContent,
   PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
 } from "@/components/ui/pagination";
 import {
   Popover,
@@ -47,12 +45,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import Api from "@/services/api";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@radix-ui/react-dropdown-menu";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import {
+  ArrowDownWideNarrow,
+  ArrowUpDown,
+  ArrowUpWideNarrow,
   ChevronDownIcon,
   MoreHorizontalIcon,
   Plus,
@@ -61,133 +63,471 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import Swal from "sweetalert2";
 
 type DataHakCiptaProps = {
+  idCipta: string;
   judulHakCipta: string;
   namaPencipta: string;
-  linkPDKI: string;
-  tglBerakhirPerlindungan: Date | undefined;
+  tanggalBerakhirPerlindungan: string;
+  linkPdki: string;
   sisaWaktuPerlindungan: string;
-  statusPembaruan: string;
-  pemegangHAKI: string;
+  idStatus: string;
+  status: string;
+  idPemegangHaki: string;
+  namaPemegangHaki: string;
 };
 
-interface UpdateStatusPembaruanProps {
-  value: string;
-  label: string;
-  code: string;
+interface StatusPembaruan {
+  idStatus: string;
+  namaStatus: string;
 }
 
-interface Nama {
-  value: string;
-  code: string;
+interface PemegangHAKIProps {
+  nama: string;
+  id: string;
 }
+
+type SortField = keyof DataHakCiptaProps | null;
 
 const HakCiptaPage = () => {
   const [showEditHakCipta, setShowEditHakCipta] = useState(false);
   const [showUpdatePembaruan, setShowUpdatePembaruan] = useState(false);
   const [showHapusHakCipta, setShowHapusHakCipta] = useState(false);
-  const [showTambahData, setShowTambahData] = useState(false);
+  const [showDialogHakCipta, setShowDialogHakCipta] = useState(false);
   const [showKadaluarsa, setShowKadaluarsa] = useState(false);
-  const [value, setValue] = useState("");
   const router = useRouter();
   const [judulHakCipta, setJudulHakCipta] = useState("");
   const [namaPencipta, setNamaPencipta] = useState("");
-  const [tglBerakhirPerlindungan, setTglBerakhirPerlindungan] = useState<
-    Date | undefined
-  >(undefined);
+  const [tanggalBerakhirPerlindungan, setTanggalBerakhirPerlindungan] =
+    useState("");
   const [linkPdki, setLinkPdki] = useState("");
   const [namaPemegangHaki, setNamaPemegangHaki] = useState("");
   const [openDatePicker, setOpenDatePicker] = useState(false);
   const [perPage, setPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [totalData, setTotalData] = useState(0);
+  const [totalPage, setTotalPage] = useState(0);
+  const [selectedRow, setSelectedRow] = useState<DataHakCiptaProps | null>(
+    null
+  );
+  const [dataTableHakCipta, setDataTableHakCipta] = useState<
+    DataHakCiptaProps[]
+  >([]);
+  const [loadingPemegangHaki, setLoadingPemegangHaki] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<StatusPembaruan | null>(
+    null
+  );
+  const [listStatus, setListStatus] = useState<StatusPembaruan[]>([]);
+  const [selectedPemegangHaki, setSelectedPemegangHaki] =
+    useState<PemegangHAKIProps | null>(null);
+  const [pemegangHakiList, setPemegangHakiList] = useState<PemegangHAKIProps[]>(
+    []
+  );
+  const [updateStatusPembaruan, setUpdateStatusPembaruan] = useState("");
+
+  const [sortConfig, setSortConfig] = useState<{
+    key: SortField;
+    direction: "asc" | "desc";
+  }>({
+    key: null,
+    direction: "asc",
+  });
+
+  const handleSort = (key: SortField) => {
+    let direction: "asc" | "desc" = "asc";
+
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
 
   const isFormValid =
     judulHakCipta &&
     namaPencipta &&
-    tglBerakhirPerlindungan &&
+    tanggalBerakhirPerlindungan &&
     linkPdki &&
-    namaPemegangHaki;
+    selectedPemegangHaki;
 
-  const handleSearch = (value: string) => {
-    setSearch(value);
-  };
-  const handleSimpanTambahData = () => {
-    const newData: DataHakCiptaProps = {
-      judulHakCipta: "Aplikasi SISTERMONIKA",
-      namaPencipta: namaPencipta,
-      linkPDKI: linkPdki || "Buka Link",
-      tglBerakhirPerlindungan: tglBerakhirPerlindungan,
-      sisaWaktuPerlindungan: tglBerakhirPerlindungan
-        ? isKadaluarsa(tglBerakhirPerlindungan)
-          ? "Sisa Waktu Perlindungan Habis"
-          : "Sisa Waktu Perlindungan Tersedia"
-        : "-",
-      statusPembaruan: "Tidak Diperpanjang",
-      pemegangHAKI: namaPemegangHaki || "",
-    };
-
-    setDataTableHakCipta((prev) => [...prev, newData]);
-
-    setShowTambahData(false);
-
+  const resetForm = () => {
+    setSelectedRow(null);
     setJudulHakCipta("");
     setNamaPencipta("");
+    setTanggalBerakhirPerlindungan("");
     setLinkPdki("");
-    setTglBerakhirPerlindungan(undefined);
     setNamaPemegangHaki("");
   };
 
-  const handleCancelTambahData = () => {
-    router.push("/hak-cipta");
+  const hitungSisaWaktu = (tanggal: string) => {
+    if (!tanggal) return "-";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expDate = new Date(tanggal);
+    expDate.setHours(0, 0, 0, 0);
+    // 2. Jika sudah kadaluarsa
+    if (expDate < today) {
+      return "Sisa waktu perlindungan habis";
+    }
+    // 3. Hitung selisih tahun, bulan, hari
+    let years = expDate.getFullYear() - today.getFullYear();
+    let months = expDate.getMonth() - today.getMonth();
+    let days = expDate.getDate() - today.getDate();
+    // Koreksi jika hari negatif
+    if (days < 0) {
+      months--;
+      const lastMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      days += lastMonth.getDate();
+    }
+    // Koreksi jika bulan negatif
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+    // Format output
+    const parts = [];
+    if (years > 0) parts.push(`${years} tahun`);
+    if (months > 0) parts.push(`${months} bulan`);
+    if (days > 0) parts.push(`${days} hari`);
+
+    return parts.length > 0 ? parts.join(" ") : "Sisa waktu perlindungan habis";
   };
 
-  const handleCancelEditHakCipta = () => {
-    router.push("/hak-cipta");
+  const fetchPemegangHaki = async () => {
+    setLoadingPemegangHaki(true);
+    try {
+      const response = await Api.get("/pemegang-haki/getAll");
+      const result = response.data?.data;
+      setPemegangHakiList(Array.isArray(result) ? result : []);
+      console.log("Data yang akan di-set:", result);
+    } catch (error) {
+      console.error("Error fetching pemegang HAKI:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Gagal mengambil data pemegang HAKI",
+      });
+    } finally {
+    }
   };
 
-  const handleSimpanEditHakCipta = () => {
+  const fetchDataHakCipta = async () => {
+    try {
+      const [resHakCipta, resStatusPembaruan] = await Promise.all([
+        Api.get(
+          `/hak-cipta?search=${encodeURIComponent(
+            search
+          )}&page=${currentPage}&limit=${perPage}`
+        ),
+        Api.get(`/status-pembaruan`),
+      ]);
+
+      const result = resHakCipta.data?.data?.data;
+      const totalData = resHakCipta.data?.data?.totalData || 0;
+      const totalPage =
+        totalData && perPage ? Math.ceil(totalData / perPage) : 1;
+
+      const mappedData = Array.isArray(result)
+        ? result.map((item: DataHakCiptaProps) => ({
+            ...item,
+            sisaWaktuPerlindungan: item.tanggalBerakhirPerlindungan
+              ? hitungSisaWaktu(item.tanggalBerakhirPerlindungan)
+              : "-",
+          }))
+        : [];
+      const isStatusPembaruan = resStatusPembaruan.data?.data || [];
+
+      setDataTableHakCipta(mappedData);
+      setTotalData(totalData);
+      setTotalPage(totalPage);
+      setListStatus(isStatusPembaruan);
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Gagal mengambil data Hak Cipta",
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchDataHakCipta();
+    fetchPemegangHaki();
+  }, [search, currentPage, perPage]);
+
+  const handleCancelDialogHakCipta = () => {
+    resetForm();
     setShowEditHakCipta(false);
-    router.push("/hak-cipta");
+  };
+
+  const handleSimpanDialogHakCipta = async () => {
+    setShowDialogHakCipta(false);
+    if (
+      !judulHakCipta ||
+      !namaPencipta ||
+      !tanggalBerakhirPerlindungan ||
+      !linkPdki ||
+      !selectedPemegangHaki
+    ) {
+      Swal.fire({
+        icon: "warning",
+        title: "Peringatan",
+        text: "Lengkapi semua form terlebih dahulu.",
+      });
+      return;
+    } else {
+      setShowDialogHakCipta(true);
+    }
+
+    try {
+      setShowDialogHakCipta(false);
+      const result = await Swal.fire({
+        icon: "question",
+        title: "Apakah data sudah benar?",
+        text: `Pastikan semua informasi sudah benar sebelum ${
+          selectedRow?.idCipta ? "mengedit" : "menambahkan"
+        } data.`,
+        showCancelButton: true,
+        confirmButtonText: "Ya, simpan data",
+        cancelButtonText: "Batal",
+      });
+
+      if (result.isDismissed) {
+        setShowDialogHakCipta(true);
+        return;
+      }
+
+      if (result.isConfirmed) {
+        const body = {
+          judul_hak_cipta: judulHakCipta,
+          nama_pencipta: namaPencipta,
+          tanggal_berakhir_perlindungan: formatToYMD(
+            tanggalBerakhirPerlindungan
+          ),
+          link_pdki: linkPdki,
+          nama_pemegang_haki: selectedPemegangHaki.nama,
+          id_pemegang_haki: selectedPemegangHaki.id,
+        };
+
+        try {
+          if (!selectedRow?.idCipta) {
+            await Api.post("/hak-cipta", body);
+
+            resetForm();
+            await fetchDataHakCipta();
+
+            await Swal.fire({
+              icon: "success",
+              title: "Berhasil Ditambahkan!",
+              text: `Data HakCipta berhasil ditambahkan.`,
+              timer: 1500,
+            }).then(() => setShowDialogHakCipta(false));
+          } else {
+            await Api.put(`/hak-cipta/${selectedRow.idCipta}`, body);
+
+            resetForm();
+            await fetchDataHakCipta();
+
+            await Swal.fire({
+              icon: "success",
+              title: "Berhasil Diubah!",
+              text: `Data Hak Cipta berhasil diubah`,
+              timer: 1500,
+            }).then(() => setShowDialogHakCipta(false));
+          }
+        } catch (err) {
+          await Swal.fire({
+            icon: "error",
+            title: "Gagal",
+            text: `Terjadi kesalahan saat ${
+              selectedRow?.idCipta ? "mengedit" : "menambahkan"
+            } data Hak Cipta.`,
+          });
+
+          setShowDialogHakCipta(true);
+        } finally {
+        }
+      }
+    } catch (error) {
+      console.error("Error dalam proses tambah data:", error);
+
+      await Swal.fire({
+        icon: "error",
+        title: "ERROR",
+        text: "Terjadi kesalahan yang tidak terduga.",
+        confirmButtonText: "Oke",
+      });
+
+      setShowDialogHakCipta(true);
+    }
+  };
+
+  const handleEditHakCipta = (row: DataHakCiptaProps) => {
+    setShowDialogHakCipta(true);
+    setSelectedRow(row);
+    setJudulHakCipta(row.judulHakCipta);
+    setNamaPencipta(row.namaPencipta);
+    setLinkPdki(row.linkPdki);
+    setSelectedPemegangHaki(
+      row.namaPemegangHaki && row.idPemegangHaki
+        ? {
+            id: row.idPemegangHaki,
+            nama: row.namaPemegangHaki,
+          }
+        : null
+    );
+    setTanggalBerakhirPerlindungan(
+      formatToYMD(row.tanggalBerakhirPerlindungan)
+    );
+    setShowEditHakCipta(true);
   };
 
   const handleCancelUpdateHakCipta = () => {
     router.push("/hak-cipta");
   };
 
-  const handleSimpanUpdateHakCipta = () => {
+  const handleSimpanUpdateHakCipta = async () => {
     setShowUpdatePembaruan(false);
-    router.push("/hak-cipta");
+    if (!selectedRow || !selectedStatus) {
+      Swal.fire({
+        icon: "warning",
+        title: "Peringatan",
+        text: "Pilih status pembaruan terlebih dahulu.",
+      }).then(() => {
+        setShowUpdatePembaruan(true);
+      });
+      return;
+    }
+    const payload = {
+      judulHakCipta: selectedRow.judulHakCipta,
+      namaPencipta: selectedRow.namaPencipta,
+      idStatus: selectedStatus.idStatus,
+      status: selectedStatus.namaStatus,
+      tanggalBerakhirPerlindungan: formatToYMD(
+        selectedRow.tanggalBerakhirPerlindungan
+      ),
+      linkPDKI: selectedRow.linkPdki,
+      idPemegangHaki: selectedRow.idPemegangHaki,
+      namaPemegangHaki: selectedRow.namaPemegangHaki,
+    };
+
+    try {
+      const response = await Api.put(
+        `/hak-cipta/pembaruan/${selectedRow.idCipta}`,
+        payload
+      );
+
+      if (response.data?.responseCode === 200) {
+        setDataTableHakCipta((prevData) =>
+          prevData.map((item) =>
+            item.idCipta === selectedRow.idCipta
+              ? { ...item, statusPembaruan: updateStatusPembaruan }
+              : item
+          )
+        );
+
+        await fetchDataHakCipta();
+        setSelectedRow(null);
+        setSelectedStatus(null);
+
+        Swal.fire({
+          icon: "success",
+          title: "Berhasil!",
+          text: "Status pembaruan berhasil diperbarui.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+
+        setUpdateStatusPembaruan("");
+      } else {
+        throw new Error("Update gagal");
+      }
+    } catch (error) {
+      console.error("Error saat mengupdate pembaruan:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Gagal",
+        text: "gagal mengupdate status pembaruan. Silakan coba lagi.",
+      });
+
+      setShowUpdatePembaruan(true);
+    }
   };
 
   const handleCancelHapusHakCipta = () => {
     router.push("/hak-cipta");
   };
 
-  const handleSimpanHapusHakCipta = () => {
+  const handleSimpanHapusHakCipta = async () => {
     setShowHapusHakCipta(false);
-    router.push("/hak-cipta");
+
+    if (!selectedRow) {
+      Swal.fire({
+        icon: "warning",
+        title: "Peringatan",
+        text: "Pilih data Hak Cipta yang ingin dihapus terlebih dahulu.",
+      }).then(() => {});
+      return;
+    }
+    console.log(!selectedRow);
+
+    try {
+      const result = await Swal.fire({
+        icon: "warning",
+        title: "Konfirmasi Hapus",
+        text: `Apakah Anda yakin ingin menghapus HakCipta dengan nomor permohonan ${selectedRow.judulHakCipta}?`,
+        showCancelButton: true,
+        confirmButtonText: "Ya, Hapus",
+        cancelButtonText: "Batal",
+        confirmButtonColor: "#DC3545",
+        cancelButtonColor: "#6c757d",
+      });
+
+      if (result.isDismissed) {
+        setShowHapusHakCipta(true);
+        return;
+      }
+
+      if (result.isConfirmed) {
+        const response = await Api.delete(`/hak-cipta/${selectedRow.idCipta}`);
+
+        if (response.data?.responseCode === 200) {
+          setDataTableHakCipta((prevData) =>
+            prevData.filter((item) => item.idCipta !== selectedRow.idCipta)
+          );
+
+          await fetchDataHakCipta();
+          setSelectedRow(null);
+
+          Swal.fire({
+            icon: "success",
+            title: "Berhasil Dihapus!",
+            text: `Data Hak Cipta ${selectedRow.judulHakCipta} berhasil dihapus dari tabel.`,
+            timer: 1500,
+            showConfirmButton: false,
+          });
+        } else {
+          throw new Error("Hapus gagal");
+        }
+      }
+    } catch (error) {
+      console.error("Error saat menghapus:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Gagal",
+        text: "Gagal menghapus data HakCipta. Silakan coba lagi.",
+      });
+
+      setShowHapusHakCipta(true);
+    }
   };
 
-  const UpdatestatusPembaruan: UpdateStatusPembaruanProps[] = [
-    {
-      value: "none",
-      label: "-",
-      code: "-",
-    },
-    { value: "tidak-diperpanjgan", label: "Tidak Diperpanjang", code: "TDP" },
-    { value: "dalam-proses", label: "Dalam Proses", code: "DPS" },
-    { value: "selesai", label: "Selesai", code: "SLS" },
-  ];
-
-  const pemegangHaki: Nama[] = [
-    { value: "Atiqa Zaviera", code: "AZA" },
-    { value: "Zaviera Atiqa", code: "ZAA" },
-  ];
-
-  const isKadaluarsa = (tanggal: Date | undefined) => {
+  const isKadaluarsa = (tanggal: string) => {
     if (!tanggal) return false;
     const expDate = new Date(tanggal);
     expDate.setHours(0, 0, 0, 0);
@@ -196,63 +536,73 @@ const HakCiptaPage = () => {
     return expDate < today;
   };
 
-  const parseDMY = (str: string): Date => {
-    const [d, m, y] = str.split("-").map(Number);
-    return new Date(y, m - 1, d);
-  };
-
-  const formatToDMY = (tanggal: Date | undefined) => {
+  const formatToDMY = (tanggal: string) => {
     if (!tanggal) return "-";
-    const day = String(tanggal.getDate()).padStart(2, "0");
-    const month = String(tanggal.getMonth() + 1).padStart(2, "0");
-    const year = tanggal.getFullYear();
+    const date = new Date(tanggal);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
     return `${day}-${month}-${year}`;
   };
 
-  const [dataTableHakCipta, setDataTableHakCipta] = useState<
-    DataHakCiptaProps[]
-  >([
-    {
-      judulHakCipta:
-        "Aplikasi SISTEMONIKA (Sistem Terintegrasi Monitoring Notaris & Perkara)",
-      namaPencipta: "PT. Permodalan Nasional Madani",
-      linkPDKI: "Buka Link",
-      tglBerakhirPerlindungan: parseDMY("10-12-2027"),
-      sisaWaktuPerlindungan: "Sisa Waktu Perlindungan Habis",
-      statusPembaruan: "Tidak Diperpanjang",
-      pemegangHAKI: "Atiqa Zaviera",
-    },
-    {
-      judulHakCipta: "SOTK Digi",
-      namaPencipta: "PT. Permodalan Nasional Madani",
-      linkPDKI: "Buka Link",
-      tglBerakhirPerlindungan: parseDMY("10-12-2022"),
-      sisaWaktuPerlindungan: "Sisa Waktu Perlindungan Habis",
-      statusPembaruan: "Tidak Diperpanjang",
-      pemegangHAKI: "Atiqa Zaviera",
-    },
-    {
-      judulHakCipta:
-        "SIMONHAKI (Sistem Informasi Manajemen Hak Kekayaan Intelektual)",
-      namaPencipta: "PT. Permodalan Nasional Madani",
-      linkPDKI: "Buka Link",
-      tglBerakhirPerlindungan: parseDMY("10-12-2027"),
-      sisaWaktuPerlindungan: "Sisa Waktu Perlindungan Habis",
-      statusPembaruan: "Tidak Diperpanjang",
-      pemegangHAKI: "Atiqa Zaviera",
-    },
-  ]);
+  const formatToYMD = (tanggal: string) => {
+    if (!tanggal) return "-";
+    const date = new Date(tanggal);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${year}-${month}-${day}`;
+  };
 
-  // Hitung total halaman
-  const totalPages = Math.ceil(dataTableHakCipta.length / perPage);
-  // Disable prev/next
+  const sortedData = useMemo(() => {
+    if (!sortConfig.key) return dataTableHakCipta;
+
+    return [...dataTableHakCipta].sort((a, b) => {
+      const x = a[sortConfig.key!];
+      const y = b[sortConfig.key!];
+
+      // if (sortConfig.key === "status") {
+      //   const labelX =
+      //     typeof x === "object" && x !== null && "label" in x
+      //       ? (x as StatusPendaftaran).statusPendaftaran ?? ""
+      //       : typeof x === "string"
+      //       ? x
+      //       : "";
+      //   const labelY =
+      //     typeof y === "object" && y !== null && "label" in y
+      //       ? (y as StatusPendaftaran).statusPendaftaran ?? ""
+      //       : typeof y === "string"
+      //       ? y
+      //       : "";
+
+      //   return sortConfig.direction === "asc"
+      //     ? labelX.localeCompare(labelY)
+      //     : labelY.localeCompare(labelX);
+      // }
+      // handle tanggal
+      if (sortConfig.key === "tanggalBerakhirPerlindungan") {
+        const dateX = x ? new Date(x as string).getTime() : 0;
+        const dateY = y ? new Date(y as string).getTime() : 0;
+
+        return sortConfig.direction === "asc" ? dateX - dateY : dateY - dateX;
+      }
+      // handle string
+      if (typeof x === "string" && typeof y === "string") {
+        return sortConfig.direction === "asc"
+          ? x.localeCompare(y)
+          : y.localeCompare(x);
+      }
+      // handle number
+      if (typeof x === "number" && typeof y === "number") {
+        return sortConfig.direction === "asc" ? x - y : y - x;
+      }
+
+      return 0;
+    });
+  }, [sortConfig, dataTableHakCipta]);
+
   const isFirstPage = currentPage === 1;
-  const isLastPage = currentPage === totalPages || totalPages === 0;
-  // Data yang ditampilkan sesuai halaman
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return dataTableHakCipta.slice(start, start + perPage);
-  }, [currentPage, perPage, dataTableHakCipta]);
+  const isLastPage = currentPage === totalPage || totalPage === 0;
 
   return (
     <>
@@ -264,13 +614,21 @@ const HakCiptaPage = () => {
             value={search}
             placeholder="Cari Hak Cipta"
             className="rounded-md w-[287px] px-2"
-            onChange={(e) => handleSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                fetchDataHakCipta();
+              }
+            }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
           />
           <Buttons
             variant="default"
             size="sm"
             className="ml-2"
-            onClick={() => setShowTambahData(true)}
+            onClick={() => setShowDialogHakCipta(true)}
           >
             <Plus />
             Tambah Data
@@ -295,45 +653,189 @@ const HakCiptaPage = () => {
       <Table className="bg-white m-5 rounded-xl">
         <TableHeader>
           <TableRow>
-            <TableHead>Judul Hak Cipta</TableHead>
-            <TableHead>Nama Pencipta</TableHead>
+            <TableHead>
+              <Buttons
+                qa-btn="sorting-judul-hak-cipta"
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("judulHakCipta");
+                }}
+                className="flex items-center"
+              >
+                Judul Hak Cipta
+                <span>
+                  {sortConfig.key !== "judulHakCipta" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+            <TableHead>
+              <Buttons
+                qa-btn="sorting-nama-pencipta"
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("namaPencipta");
+                }}
+                className="flex items-center"
+              >
+                Nama Pencipta
+                <span>
+                  {sortConfig.key !== "namaPencipta" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
             <TableHead>Link PDKI</TableHead>
-            <TableHead>Tgl Berakhir Perlindungan</TableHead>
-            <TableHead>Sisa Waktu Perlindungan</TableHead>
-            <TableHead>Status Pembaruan</TableHead>
-            <TableHead>Pemegang HAKI</TableHead>
+            <TableHead>
+              {" "}
+              <Buttons
+                qa-btn="sorting-tanggal-berakhir-perlindungan"
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("tanggalBerakhirPerlindungan");
+                }}
+                className="flex items-center"
+              >
+                Tgl Berakhir Perlindungan
+                <span>
+                  {sortConfig.key !== "tanggalBerakhirPerlindungan" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+            <TableHead>
+              <Buttons
+                qa-btn="sorting-sisa-waktu-perlindungan"
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("sisaWaktuPerlindungan");
+                }}
+                className="flex items-center"
+              >
+                Sisa Waktu Perlindungan
+                <span>
+                  {sortConfig.key !== "sisaWaktuPerlindungan" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+
+            <TableHead>
+              <Buttons
+                qa-btn="sorting-status-pembaruan"
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("status");
+                }}
+                className="flex items-center"
+              >
+                Status Pembaruan
+                <span>
+                  {sortConfig.key !== "status" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+
+            <TableHead>
+              <Buttons
+                qa-btn="sorting-nama-pemegang-haki"
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("namaPemegangHaki");
+                }}
+                className="flex items-center"
+              >
+                Pemegang HAKI
+                <span>
+                  {sortConfig.key !== "namaPemegangHaki" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
             <TableHead>Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {paginatedData.length === 0 ? (
+          {sortedData.length === 0 ? (
             <TableRow>
               <TableCell colSpan={10} className="text-center py-8">
                 Tidak ada data
               </TableCell>
             </TableRow>
           ) : (
-            paginatedData.map((item) => {
+            sortedData.map((item, rowIndex) => {
               const {
                 judulHakCipta,
                 namaPencipta,
-                linkPDKI,
-                tglBerakhirPerlindungan,
+                linkPdki,
+                tanggalBerakhirPerlindungan,
                 sisaWaktuPerlindungan,
-                statusPembaruan,
-                pemegangHAKI,
+                status,
+                namaPemegangHaki,
               } = item;
 
               return (
                 <TableRow
                   key={judulHakCipta}
                   className={
-                    showKadaluarsa && isKadaluarsa(tglBerakhirPerlindungan)
+                    showKadaluarsa && isKadaluarsa(tanggalBerakhirPerlindungan)
                       ? "border-l-4 border-l-[#DC3545] bg-[#DC35451A]"
                       : ""
                   }
                 >
-                  <TableCell>{judulHakCipta}</TableCell>
+                  <TableCell
+                    className={`  ${
+                      showKadaluarsa &&
+                      isKadaluarsa(tanggalBerakhirPerlindungan)
+                        ? "border-l-4 border-l-[#DC3545]"
+                        : ""
+                    }`}
+                  >
+                    {judulHakCipta}
+                  </TableCell>
                   <TableCell>{namaPencipta}</TableCell>
                   <TableCell>
                     <Link
@@ -343,19 +845,19 @@ const HakCiptaPage = () => {
                       className="text-blue-600 hover:underline"
                       aria-label={`Buka PDKI untuk ${judulHakCipta}`}
                     >
-                      {linkPDKI}
+                      {linkPdki}
                     </Link>
                   </TableCell>
                   <TableCell>
-                    {tglBerakhirPerlindungan
-                      ? formatToDMY(tglBerakhirPerlindungan)
+                    {tanggalBerakhirPerlindungan
+                      ? formatToDMY(tanggalBerakhirPerlindungan)
                       : "-"}
                   </TableCell>
                   <TableCell className="max-w-xs truncate">
                     {sisaWaktuPerlindungan}
                   </TableCell>
-                  <TableCell>{statusPembaruan}</TableCell>
-                  <TableCell>{pemegangHAKI}</TableCell>
+                  <TableCell>{status}</TableCell>
+                  <TableCell>{namaPemegangHaki}</TableCell>
                   <TableCell>
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
@@ -370,7 +872,7 @@ const HakCiptaPage = () => {
                       <DropdownMenuContent className="w-40" align="end">
                         <DropdownMenuGroup className="space-y-1">
                           <DropdownMenuItem
-                            onSelect={() => setShowEditHakCipta(true)}
+                            onSelect={() => handleEditHakCipta(item)}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
                             <div className="text-sm hover:font-semibold">
@@ -378,7 +880,10 @@ const HakCiptaPage = () => {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onSelect={() => setShowUpdatePembaruan(true)}
+                            onSelect={() => {
+                              setShowUpdatePembaruan(true);
+                              setSelectedRow(item);
+                            }}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
                             <div className="text-sm hover:font-semibold">
@@ -386,7 +891,10 @@ const HakCiptaPage = () => {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onSelect={() => setShowHapusHakCipta(true)}
+                            onSelect={() => {
+                              setShowHapusHakCipta(true);
+                              setSelectedRow(item);
+                            }}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
                             <div
@@ -399,157 +907,6 @@ const HakCiptaPage = () => {
                         </DropdownMenuGroup>
                       </DropdownMenuContent>
                     </DropdownMenu>
-
-                    {/* Dialog Edit Hak Cipta */}
-                    <Dialog
-                      open={showEditHakCipta}
-                      onOpenChange={setShowEditHakCipta}
-                    >
-                      <DialogContent className="sm:max-w-[788px] p-0">
-                        <DialogHeader>
-                          <DialogTitle className="bg-[#064263] text-white rounded-t-lg">
-                            Edit Hak Cipta
-                          </DialogTitle>
-                          <div className="grid grid-cols-2 grid-rows-3 gap-4 p-4">
-                            <div className="col-span-2">
-                              <Labels
-                                htmlFor="judul-hak-cipta"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Judul Hak Cipta{" "}
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Inputs
-                                type="text"
-                                placeholder="Aplikasi SISTEMONIKA (Sistem Terintegrasi Monitoring Notaris & Perkara)"
-                                className="w-full border rounded px-2 py-1"
-                                onChange={(e) => setValue(e.target.value)}
-                              />
-                            </div>
-
-                            <div>
-                              <Labels
-                                htmlFor="nama-pencipta"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Nama Pencipta{" "}
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Inputs
-                                type="text"
-                                placeholder="PT. Permodalan Nasional Madani"
-                                className="w-full border rounded px-2 py-1"
-                                onChange={(e) => setValue(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Labels
-                                htmlFor="tanggal-berakhir-perlindungan"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Tanggal Berakhir Perlindungan{" "}
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Popover
-                                open={openDatePicker}
-                                onOpenChange={setOpenDatePicker}
-                              >
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    className="w-full justify-between font-normal"
-                                  >
-                                    {tglBerakhirPerlindungan
-                                      ? tglBerakhirPerlindungan.toLocaleDateString()
-                                      : "Masukkan tanggal berakhir perlindungan"}
-                                    <ChevronDownIcon className="ml-2 h-4 w-4 opacity-50" />
-                                  </Button>
-                                </PopoverTrigger>
-
-                                <PopoverContent
-                                  className="w-auto p-0"
-                                  align="start"
-                                >
-                                  <Calendar
-                                    mode="single"
-                                    selected={tglBerakhirPerlindungan}
-                                    captionLayout="dropdown"
-                                    onSelect={(date) => {
-                                      setTglBerakhirPerlindungan(date);
-                                      setOpenDatePicker(false);
-                                    }}
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                            </div>
-                            <div>
-                              <Labels
-                                htmlFor="link-pdki"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Link PDKI{" "}
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Inputs
-                                type="text"
-                                placeholder="https://simonhaki.pnm.co.id"
-                                className="w-full border rounded px-2 py-1"
-                                onChange={(e) => setValue(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Labels
-                                htmlFor="nama-pemegang-haki"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Nama Pemegang HAKI{" "}
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Select
-                                onValueChange={(val) =>
-                                  setNamaPemegangHaki(val)
-                                }
-                                value={namaPemegangHaki}
-                              >
-                                <SelectTrigger className="w-full border rounded px-2 py-1">
-                                  <SelectValue placeholder="Pilih nama pemegang HAKI" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {pemegangHaki.map((nama) => (
-                                    <SelectItem
-                                      key={nama.value}
-                                      value={nama.value}
-                                    >
-                                      {nama.value}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        </DialogHeader>
-                        <DialogFooter className="p-4">
-                          <DialogClose asChild>
-                            <Buttons
-                              variant="defaultSecond"
-                              size="sm"
-                              onClick={() => handleCancelEditHakCipta()}
-                              className="w-20 p-2"
-                            >
-                              Batal
-                            </Buttons>
-                          </DialogClose>
-                          <Buttons
-                            variant="default"
-                            size="sm"
-                            onClick={() => handleSimpanEditHakCipta()}
-                            className="w-40 ml-2 p-2"
-                          >
-                            Simpan Perubahan
-                          </Buttons>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
 
                     {/* Dialog Update Pembaruan */}
                     <Dialog
@@ -566,23 +923,30 @@ const HakCiptaPage = () => {
                               htmlFor="status"
                               className="block text-sm font-medium mb-1"
                             >
-                              Status
+                              Status Pembaruan
                               <span className="text-red-500 ml-1">*</span>
                             </Labels>
                             <Select
-                              onValueChange={(val) => setValue(val)}
-                              value={value}
+                              onValueChange={(val) =>
+                                setSelectedStatus(JSON.parse(val))
+                              }
+                              qa-select="update-status-pembaruan"
                             >
-                              <SelectTrigger className="w-full border rounded px-2 py-1">
+                              <SelectTrigger
+                                className="w-full border rounded px-2 py-1"
+                                qa-select-trigger="select-update-status-pembaruan"
+                              >
                                 <SelectValue placeholder="Pilih status" />
                               </SelectTrigger>
+
                               <SelectContent>
-                                {UpdatestatusPembaruan.map((update) => (
+                                {listStatus?.map((status: StatusPembaruan) => (
                                   <SelectItem
-                                    key={update.value}
-                                    value={update.value}
+                                    key={status.idStatus}
+                                    value={JSON.stringify(status)}
+                                    qa-select-option={`select-update-status-pembaruan-${status.namaStatus}`}
                                   >
-                                    {update.label}
+                                    {status.namaStatus}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -671,11 +1035,11 @@ const HakCiptaPage = () => {
           )}
         </TableBody>
       </Table>
-      <Dialog open={showTambahData} onOpenChange={setShowTambahData}>
+      <Dialog open={showDialogHakCipta} onOpenChange={setShowDialogHakCipta}>
         <DialogContent className="sm:max-w-[788px] p-0">
           <DialogHeader>
             <DialogTitle className="bg-[#064263] text-white rounded-t-lg">
-              Tambah Hak Cipta
+              {selectedRow ? "Edit Hak Cipta" : "Tambah Data"}
             </DialogTitle>
             <div className="grid grid-cols-2 gap-4 p-4">
               <div className="col-span-2">
@@ -689,6 +1053,7 @@ const HakCiptaPage = () => {
                   type="text"
                   placeholder="Masukan judul hak cipta"
                   className="w-full border rounded px-2 py-1"
+                  value={judulHakCipta}
                   onChange={(e) => setJudulHakCipta(e.target.value)}
                 />
               </div>
@@ -703,6 +1068,7 @@ const HakCiptaPage = () => {
                   type="text"
                   placeholder="Masukan nama pencipta"
                   className="w-full border rounded px-2 py-1"
+                  value={namaPencipta}
                   onChange={(e) => setNamaPencipta(e.target.value)}
                 />
               </div>
@@ -711,18 +1077,19 @@ const HakCiptaPage = () => {
                   htmlFor="tanggal-berakhir-perlindungan"
                   className="block text-sm font-medium mb-1"
                 >
-                  Tanggal Berakhir Perlindungan{" "}
+                  Tanggal Berakhir Perlindungan
                   <span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Popover open={openDatePicker} onOpenChange={setOpenDatePicker}>
                   <PopoverTrigger asChild>
                     <Button
+                      qa-btn="select-tanggal-berakhir-perlindungan"
                       variant="outline"
                       className="w-full justify-between font-normal"
                     >
-                      {tglBerakhirPerlindungan
-                        ? tglBerakhirPerlindungan.toLocaleDateString()
-                        : "Masukkan tanggal berakhir perlindungan"}
+                      {tanggalBerakhirPerlindungan ||
+                        "Masukkan tanggal berakhir perlindungan"}
+
                       <ChevronDownIcon className="ml-2 h-4 w-4 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -730,10 +1097,24 @@ const HakCiptaPage = () => {
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={tglBerakhirPerlindungan}
+                      selected={
+                        tanggalBerakhirPerlindungan
+                          ? new Date(tanggalBerakhirPerlindungan)
+                          : undefined
+                      }
                       captionLayout="dropdown"
                       onSelect={(date) => {
-                        setTglBerakhirPerlindungan(date);
+                        if (date) {
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(
+                            2,
+                            "0"
+                          );
+                          const day = String(date.getDate()).padStart(2, "0");
+                          setTanggalBerakhirPerlindungan(
+                            `${year}-${month}-${day}`
+                          );
+                        }
                         setOpenDatePicker(false);
                       }}
                     />
@@ -751,6 +1132,7 @@ const HakCiptaPage = () => {
                   type="text"
                   placeholder="Masukan link PDKI"
                   className="w-full border rounded px-2 py-1"
+                  value={linkPdki}
                   onChange={(e) => setLinkPdki(e.target.value)}
                 />
               </div>
@@ -759,22 +1141,43 @@ const HakCiptaPage = () => {
                   htmlFor="nama-pemegang-haki"
                   className="block text-sm font-medium mb-1"
                 >
-                  Nama Pemegang HAKI{" "}
+                  Nama Pemegang HAKI
                   <span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Select
-                  onValueChange={(val) => setNamaPemegangHaki(val)}
-                  value={namaPemegangHaki}
+                  qa-select="nama-pemegang-haki"
+                  onValueChange={(val) => {
+                    const selected = JSON.parse(val);
+                    setSelectedPemegangHaki(selected);
+                  }}
+                  value={
+                    selectedPemegangHaki
+                      ? JSON.stringify(selectedPemegangHaki)
+                      : ""
+                  }
                 >
-                  <SelectTrigger className="w-full border rounded px-2 py-1">
+                  <SelectTrigger
+                    className="w-full border rounded px-2 py-1"
+                    qa-select-trigger="select-nama-pemegang-haki"
+                  >
                     <SelectValue placeholder="Pilih nama pemegang HAKI" />
                   </SelectTrigger>
                   <SelectContent>
-                    {pemegangHaki.map((nama) => (
-                      <SelectItem key={nama.value} value={nama.value}>
-                        {nama.value}
+                    {pemegangHakiList && pemegangHakiList.length > 0 ? (
+                      pemegangHakiList.map((item) => (
+                        <SelectItem
+                          key={item.id}
+                          value={JSON.stringify(item)}
+                          qa-select-option={`select-nama-pemegang-haki-${item.nama}`}
+                        >
+                          {item.nama}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="loading" disabled>
+                        Loading...
                       </SelectItem>
-                    ))}
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -785,7 +1188,7 @@ const HakCiptaPage = () => {
               <Buttons
                 variant="defaultSecond"
                 size="sm"
-                onClick={() => handleCancelTambahData()}
+                onClick={() => handleCancelDialogHakCipta()}
                 className="w-20 p-2"
               >
                 Batal
@@ -795,7 +1198,7 @@ const HakCiptaPage = () => {
               variant="default"
               size="sm"
               disabled={!isFormValid}
-              onClick={() => handleSimpanTambahData()}
+              onClick={() => handleSimpanDialogHakCipta()}
               className="w-40 ml-2 p-2"
             >
               Simpan Perubahan
@@ -810,6 +1213,7 @@ const HakCiptaPage = () => {
           <span>Show</span>
 
           <select
+            qa-select="per-page"
             className="border rounded-md px-2 py-1 bg-white"
             value={perPage}
             onChange={(e: ChangeEvent<HTMLSelectElement>) => {
@@ -818,9 +1222,15 @@ const HakCiptaPage = () => {
               setCurrentPage(1);
             }}
           >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
+            <option value={10} qa-select-option="10">
+              10
+            </option>
+            <option value={25} qa-select-option="25">
+              25
+            </option>
+            <option value={50} qa-select-option="50">
+              50
+            </option>
           </select>
 
           <span>entries</span>
@@ -830,29 +1240,75 @@ const HakCiptaPage = () => {
         <div className="flex justify-center py-4">
           <Pagination>
             <PaginationContent>
-              {/* PREVIOUS */}
+              {/* DOUBLE ARROW LEFT - KE HALAMAN PERTAMA */}
               <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={() => !isFirstPage && setCurrentPage((p) => p - 1)}
+                <Button
+                  qa-btn="first-page"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={isFirstPage}
                   className={
                     isFirstPage ? "pointer-events-none opacity-40" : ""
                   }
-                />
+                >
+                  <span className="flex">
+                    <ChevronDownIcon className="h-4 w-4 rotate-90" />
+                    <ChevronDownIcon className="h-4 w-4 rotate-90 -ml-2" />
+                  </span>
+                </Button>
               </PaginationItem>
 
-              {/* NOMOR HALAMAN - HANYA TAMPIL HALAMAN SAAT INI */}
-              <PaginationItem className="rounded-lg text-white text-sm bg-[#006694] text-center px-3 py-2">
-                {currentPage}
-              </PaginationItem>
-
-              {/* NEXT */}
+              {/* SINGLE ARROW LEFT - PREVIOUS */}
               <PaginationItem>
-                <PaginationNext
-                  href="#"
+                <Button
+                  qa-btn="prev-table"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => !isFirstPage && setCurrentPage((p) => p - 1)}
+                  disabled={isFirstPage}
+                  className={
+                    isFirstPage ? "pointer-events-none opacity-40" : ""
+                  }
+                >
+                  <ChevronDownIcon className="h-4 w-4 rotate-90" />
+                </Button>
+              </PaginationItem>
+
+              {/* NOMOR HALAMAN SAAT INI */}
+              <PaginationItem className="rounded-lg text-white text-sm bg-[#006694] text-center px-4 py-2 mx-2">
+                {currentPage} / {totalPage}
+              </PaginationItem>
+
+              {/* SINGLE ARROW RIGHT - NEXT */}
+              <PaginationItem>
+                <Button
+                  qa-btn="next-table"
+                  variant="outline"
+                  size="icon"
                   onClick={() => !isLastPage && setCurrentPage((p) => p + 1)}
+                  disabled={isLastPage}
                   className={isLastPage ? "pointer-events-none opacity-40" : ""}
-                />
+                >
+                  <ChevronDownIcon className="h-4 w-4 -rotate-90" />
+                </Button>
+              </PaginationItem>
+
+              {/* DOUBLE ARROW RIGHT - KE HALAMAN TERAKHIR */}
+              <PaginationItem>
+                <Button
+                  qa-btn="last-page"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(totalPage)}
+                  disabled={isLastPage}
+                  className={isLastPage ? "pointer-events-none opacity-40" : ""}
+                >
+                  <span className="flex">
+                    <ChevronDownIcon className="h-4 w-4 -rotate-90" />
+                    <ChevronDownIcon className="h-4 w-4 -rotate-90 -ml-2" />
+                  </span>
+                </Button>
               </PaginationItem>
             </PaginationContent>
           </Pagination>

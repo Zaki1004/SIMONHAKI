@@ -24,8 +24,6 @@ import {
   Pagination,
   PaginationContent,
   PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -43,6 +41,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import Api from "@/services/api";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -50,6 +49,9 @@ import {
 import { PopoverContent } from "@radix-ui/react-popover";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import {
+  ArrowDownWideNarrow,
+  ArrowUpDown,
+  ArrowUpWideNarrow,
   ChevronDownIcon,
   MoreHorizontalIcon,
   Plus,
@@ -58,132 +60,465 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import Swal from "sweetalert2";
 
 type DataPatenProps = {
+  id: string;
   judulPaten: string;
-  noPermohonan: string;
+  nomorPermohonan: string;
+  tanggalBerakhirPerlindungan: string;
   linkPDKI: string;
-  tglBerakhirPerlindungan: Date | undefined;
   sisaWaktuPerlindungan: string;
-  statusPembaruan: string;
-  pemegangHAKI: string;
+  idPemegangHaki: string;
+  namaPemegangHaki: string;
+  idStatus: string;
+  status: string;
 };
 
-interface UpdateStatusPembaruanProps {
-  value: string;
-  label: string;
-  code: string;
+interface StatusPembaruan {
+  idStatus: string;
+  namaStatus: string;
 }
 
-interface Nama {
-  value: string;
-  code: string;
+interface PemegangHAKIProps {
+  nama: string;
+  id: string;
 }
+
+type SortField = keyof DataPatenProps | null;
 
 const PatenPage = () => {
   const [showEditPaten, setShowEditPaten] = useState(false);
   const [showUpdatePembaruan, setShowUpdatePembaruan] = useState(false);
   const [showHapusPaten, setShowHapusPaten] = useState(false);
-  const [showTambahData, setShowTambahData] = useState(false);
+  const [showDialogPaten, setShowDialogPaten] = useState(false);
   const [showKadaluarsa, setShowKadaluarsa] = useState(false);
-  const [value, setValue] = useState("");
   const router = useRouter();
   const [judulPaten, setJudulPaten] = useState("");
   const [nomorPermohonan, setNomorPermohonan] = useState("");
-  const [tglBerakhirPerlindungan, setTglBerakhirPerlindungan] = useState<
-    Date | undefined
-  >(undefined);
+  const [tanggalBerakhirPerlindungan, setTanggalBerakhirPerlindungan] =
+    useState("");
   const [linkPdki, setLinkPdki] = useState("");
   const [namaPemegangHaki, setNamaPemegangHaki] = useState("");
   const [openDatePicker, setOpenDatePicker] = useState(false);
   const [perPage, setPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [totalData, setTotalData] = useState(0);
+  const [totalPage, setTotalPage] = useState(0);
+  const [selectedRow, setSelectedRow] = useState<DataPatenProps | null>(null);
+  const [dataTablePaten, setDataTablePaten] = useState<DataPatenProps[]>([]);
+  const [loadingPemegangHaki, setLoadingPemegangHaki] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<StatusPembaruan | null>(
+    null
+  );
+  const [listStatus, setListStatus] = useState<StatusPembaruan[]>([]);
+  const [selectedPemegangHaki, setSelectedPemegangHaki] =
+    useState<PemegangHAKIProps | null>(null);
+  const [pemegangHakiList, setPemegangHakiList] = useState<PemegangHAKIProps[]>(
+    []
+  );
+  const [updateStatusPembaruan, setUpdateStatusPembaruan] = useState("");
+
+  const [sortConfig, setSortConfig] = useState<{
+    key: SortField;
+    direction: "asc" | "desc";
+  }>({
+    key: null,
+    direction: "asc",
+  });
+
+  const handleSort = (key: SortField) => {
+    let direction: "asc" | "desc" = "asc";
+
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
 
   const isFormValid =
     judulPaten &&
     nomorPermohonan &&
-    tglBerakhirPerlindungan &&
+    tanggalBerakhirPerlindungan &&
     linkPdki &&
-    namaPemegangHaki;
+    selectedPemegangHaki;
 
-  const handleSearch = (value: string) => {
-    setSearch(value);
-  };
-  const handleSimpanTambahData = () => {
-    const newData: DataPatenProps = {
-      judulPaten: "SISTERMONIKA",
-      noPermohonan: nomorPermohonan || `J${Date.now()}`,
-      linkPDKI: linkPdki || "Buka Link",
-      tglBerakhirPerlindungan: tglBerakhirPerlindungan,
-      sisaWaktuPerlindungan: tglBerakhirPerlindungan
-        ? isKadaluarsa(tglBerakhirPerlindungan)
-          ? "Sisa Waktu Perlindungan Habis"
-          : "Sisa Waktu Perlindungan Tersedia"
-        : "-",
-      statusPembaruan: "Tidak Diperpanjang",
-      pemegangHAKI: namaPemegangHaki || "",
-    };
-
-    setDataTablePaten((prev) => [...prev, newData]);
-
-    setShowTambahData(false);
-
+  const resetForm = () => {
+    setSelectedRow(null);
+    setJudulPaten("");
     setNomorPermohonan("");
-    setTglBerakhirPerlindungan(undefined);
+    setTanggalBerakhirPerlindungan("");
     setLinkPdki("");
     setNamaPemegangHaki("");
   };
 
-  const handleCancelTambahData = () => {
-    router.push("/paten");
+  const hitungSisaWaktu = (tanggal: string) => {
+    if (!tanggal) return "-";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expDate = new Date(tanggal);
+    expDate.setHours(0, 0, 0, 0);
+    // 2. Jika sudah kadaluarsa
+    if (expDate < today) {
+      return "Sisa waktu perlindungan habis";
+    }
+    // 3. Hitung selisih tahun, bulan, hari
+    let years = expDate.getFullYear() - today.getFullYear();
+    let months = expDate.getMonth() - today.getMonth();
+    let days = expDate.getDate() - today.getDate();
+    // Koreksi jika hari negatif
+    if (days < 0) {
+      months--;
+      const lastMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      days += lastMonth.getDate();
+    }
+    // Koreksi jika bulan negatif
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+    // Format output
+    const parts = [];
+    if (years > 0) parts.push(`${years} tahun`);
+    if (months > 0) parts.push(`${months} bulan`);
+    if (days > 0) parts.push(`${days} hari`);
+
+    return parts.length > 0 ? parts.join(" ") : "Sisa waktu perlindungan habis";
   };
 
-  const handleCancelEditPaten = () => {
-    router.push("/paten");
+  const fetchPemegangHaki = async () => {
+    setLoadingPemegangHaki(true);
+    try {
+      const response = await Api.get("/pemegang-haki/getAll");
+      const result = response.data?.data;
+      setPemegangHakiList(Array.isArray(result) ? result : []);
+      console.log("Data yang akan di-set:", result);
+    } catch (error) {
+      console.error("Error fetching pemegang HAKI:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Gagal mengambil data pemegang HAKI",
+      });
+    } finally {
+    }
   };
 
-  const handleSimpanEditPaten = () => {
+  const fetchDataPaten = async () => {
+    try {
+      const [resPaten, resStatusPembaruan] = await Promise.all([
+        Api.get(
+          `/paten?search=${encodeURIComponent(
+            search
+          )}&page=${currentPage}&limit=${perPage}`
+        ),
+        Api.get(`/status-pembaruan`),
+      ]);
+
+      const result = resPaten.data?.data?.data;
+      const totalData = resPaten.data?.data?.totalData || 0;
+      const totalPage =
+        totalData && perPage ? Math.ceil(totalData / perPage) : 1;
+
+      const mappedData = Array.isArray(result)
+        ? result.map((item: DataPatenProps) => ({
+            ...item,
+            sisaWaktuPerlindungan: item.tanggalBerakhirPerlindungan
+              ? hitungSisaWaktu(item.tanggalBerakhirPerlindungan)
+              : "-",
+          }))
+        : [];
+      const isStatusPembaruan = resStatusPembaruan.data?.data || [];
+
+      setDataTablePaten(mappedData);
+      setTotalData(totalData);
+      setTotalPage(totalPage);
+      setListStatus(isStatusPembaruan);
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Gagal mengambil data Paten",
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchDataPaten();
+    fetchPemegangHaki();
+  }, [search, currentPage, perPage]);
+
+  const handleCancelDialogPaten = () => {
+    resetForm();
     setShowEditPaten(false);
-    router.push("/paten");
+  };
+
+  const handleSimpanDialogPaten = async () => {
+    setShowDialogPaten(false);
+    if (
+      !judulPaten ||
+      !nomorPermohonan ||
+      !tanggalBerakhirPerlindungan ||
+      !linkPdki ||
+      !selectedPemegangHaki
+    ) {
+      Swal.fire({
+        icon: "warning",
+        title: "Peringatan",
+        text: "Lengkapi semua form terlebih dahulu.",
+      });
+      return;
+    } else {
+      setShowDialogPaten(true);
+    }
+
+    try {
+      setShowDialogPaten(false);
+      const result = await Swal.fire({
+        icon: "question",
+        title: "Apakah data sudah benar?",
+        text: `Pastikan semua informasi sudah benar sebelum ${
+          selectedRow?.id ? "mengedit" : "menambahkan"
+        } data.`,
+        showCancelButton: true,
+        confirmButtonText: "Ya, simpan data",
+        cancelButtonText: "Batal",
+      });
+
+      if (result.isDismissed) {
+        setShowDialogPaten(true);
+        return;
+      }
+
+      if (result.isConfirmed) {
+        const body = {
+          judulPaten,
+          nomorPermohonan,
+          tanggalBerakhirPerlindungan: formatToYMD(tanggalBerakhirPerlindungan),
+          linkPDKI: linkPdki,
+          namaPemegangHaki: selectedPemegangHaki.nama,
+          idPemegangHaki: selectedPemegangHaki.id,
+        };
+
+        try {
+          if (!selectedRow?.id) {
+            await Api.post("/paten", body);
+
+            resetForm();
+            await fetchDataPaten();
+
+            await Swal.fire({
+              icon: "success",
+              title: "Berhasil Ditambahkan!",
+              text: `Data Paten berhasil ditambahkan.`,
+              timer: 1500,
+            }).then(() => setShowDialogPaten(false));
+          } else {
+            await Api.put(`/paten/${selectedRow.id}`, body);
+
+            resetForm();
+            await fetchDataPaten();
+
+            await Swal.fire({
+              icon: "success",
+              title: "Berhasil Diubah!",
+              text: `Data Paten berhasil diubah`,
+              timer: 1500,
+            }).then(() => setShowDialogPaten(false));
+          }
+        } catch (err) {
+          await Swal.fire({
+            icon: "error",
+            title: "Gagal",
+            text: `Terjadi kesalahan saat ${
+              selectedRow?.id ? "mengedit" : "menambahkan"
+            } data Paten.`,
+          });
+
+          setShowDialogPaten(true);
+        } finally {
+        }
+      }
+    } catch (error) {
+      console.error("Error dalam proses tambah data:", error);
+
+      await Swal.fire({
+        icon: "error",
+        title: "ERROR",
+        text: "Terjadi kesalahan yang tidak terduga.",
+        confirmButtonText: "Oke",
+      });
+
+      setShowDialogPaten(true);
+    }
+  };
+
+  const handleEditPaten = (row: DataPatenProps) => {
+    setShowDialogPaten(true);
+    setSelectedRow(row);
+    setJudulPaten(row.judulPaten);
+    setNomorPermohonan(row.nomorPermohonan);
+    setLinkPdki(row.linkPDKI);
+    setSelectedPemegangHaki(
+      row.namaPemegangHaki && row.idPemegangHaki
+        ? {
+            id: row.idPemegangHaki,
+            nama: row.namaPemegangHaki,
+          }
+        : null
+    );
+    setTanggalBerakhirPerlindungan(
+      formatToYMD(row.tanggalBerakhirPerlindungan)
+    );
+    setShowEditPaten(true);
   };
 
   const handleCancelUpdatePaten = () => {
     router.push("/paten");
   };
 
-  const handleSimpanUpdatePaten = () => {
+  const handleSimpanUpdatePaten = async () => {
     setShowUpdatePembaruan(false);
-    router.push("/paten");
+    if (!selectedRow || !selectedStatus) {
+      Swal.fire({
+        icon: "warning",
+        title: "Peringatan",
+        text: "Pilih status pembaruan terlebih dahulu.",
+      }).then(() => {
+        setShowUpdatePembaruan(true);
+      });
+      return;
+    }
+    const payload = {
+      judulPaten: selectedRow.judulPaten,
+      nomorPermohonan: selectedRow.nomorPermohonan,
+      idStatus: selectedStatus.idStatus,
+      status: selectedStatus.namaStatus,
+      tanggalBerakhirPerlindungan: formatToYMD(
+        selectedRow.tanggalBerakhirPerlindungan
+      ),
+      linkPDKI: selectedRow.linkPDKI,
+      idPemegangHaki: selectedRow.idPemegangHaki,
+      namaPemegangHaki: selectedRow.namaPemegangHaki,
+    };
+
+    try {
+      const response = await Api.put(
+        `/paten/pembaruan/${selectedRow.id}`,
+        payload
+      );
+
+      if (response.data?.responseCode === 200) {
+        setDataTablePaten((prevData) =>
+          prevData.map((item) =>
+            item.id === selectedRow.id
+              ? { ...item, statusPembaruan: updateStatusPembaruan }
+              : item
+          )
+        );
+
+        await fetchDataPaten();
+        setSelectedRow(null);
+        setSelectedStatus(null);
+
+        Swal.fire({
+          icon: "success",
+          title: "Berhasil!",
+          text: "Status pembaruan berhasil diperbarui.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+
+        setUpdateStatusPembaruan("");
+      } else {
+        throw new Error("Update gagal");
+      }
+    } catch (error) {
+      console.error("Error saat mengupdate pembaruan:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Gagal",
+        text: "gagal mengupdate status pembaruan. Silakan coba lagi.",
+      });
+
+      setShowUpdatePembaruan(true);
+    }
   };
 
   const handleCancelHapusPaten = () => {
     router.push("/paten");
   };
 
-  const handleSimpanHapusPaten = () => {
+  const handleSimpanHapusPaten = async () => {
     setShowHapusPaten(false);
-    router.push("/paten");
+
+    if (!selectedRow) {
+      Swal.fire({
+        icon: "warning",
+        title: "Peringatan",
+        text: "Pilih data Paten yang ingin dihapus terlebih dahulu.",
+      }).then(() => {});
+      return;
+    }
+    console.log(!selectedRow);
+
+    try {
+      const result = await Swal.fire({
+        icon: "warning",
+        title: "Konfirmasi Hapus",
+        text: `Apakah Anda yakin ingin menghapus Paten dengan nomor permohonan ${selectedRow.nomorPermohonan}?`,
+        showCancelButton: true,
+        confirmButtonText: "Ya, Hapus",
+        cancelButtonText: "Batal",
+        confirmButtonColor: "#DC3545",
+        cancelButtonColor: "#6c757d",
+      });
+
+      if (result.isDismissed) {
+        setShowHapusPaten(true);
+        return;
+      }
+
+      if (result.isConfirmed) {
+        const response = await Api.delete(`/paten/${selectedRow.id}`);
+
+        if (response.data?.responseCode === 200) {
+          setDataTablePaten((prevData) =>
+            prevData.filter((item) => item.id !== selectedRow.id)
+          );
+
+          await fetchDataPaten();
+          setSelectedRow(null);
+
+          Swal.fire({
+            icon: "success",
+            title: "Berhasil Dihapus!",
+            text: `Data Paten ${selectedRow.nomorPermohonan} berhasil dihapus dari tabel.`,
+            timer: 1500,
+            showConfirmButton: false,
+          });
+        } else {
+          throw new Error("Hapus gagal");
+        }
+      }
+    } catch (error) {
+      console.error("Error saat menghapus:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Gagal",
+        text: "Gagal menghapus data Paten. Silakan coba lagi.",
+      });
+
+      setShowHapusPaten(true);
+    }
   };
 
-  const UpdatestatusPembaruan: UpdateStatusPembaruanProps[] = [
-    {
-      value: "none",
-      label: "-",
-      code: "-",
-    },
-    { value: "tidak-diperpanjgan", label: "Tidak Diperpanjang", code: "TDP" },
-    { value: "dalam-proses", label: "Dalam Proses", code: "DPS" },
-    { value: "selesai", label: "Selesai", code: "SLS" },
-  ];
-
-  const pemegangHaki: Nama[] = [
-    { value: "Atiqa Zaviera", code: "AZA" },
-    { value: "Zaviera Atiqa", code: "ZAA" },
-  ];
-
-  const isKadaluarsa = (tanggal: Date | undefined) => {
+  const isKadaluarsa = (tanggal: string) => {
     if (!tanggal) return false;
     const expDate = new Date(tanggal);
     expDate.setHours(0, 0, 0, 0);
@@ -192,59 +527,73 @@ const PatenPage = () => {
     return expDate < today;
   };
 
-  const parseDMY = (str: string): Date => {
-    const [d, m, y] = str.split("-").map(Number);
-    return new Date(y, m - 1, d);
-  };
-
-  const formatToDMY = (tanggal: Date | undefined) => {
+  const formatToDMY = (tanggal: string) => {
     if (!tanggal) return "-";
-    const day = String(tanggal.getDate()).padStart(2, "0");
-    const month = String(tanggal.getMonth() + 1).padStart(2, "0");
-    const year = tanggal.getFullYear();
+    const date = new Date(tanggal);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
     return `${day}-${month}-${year}`;
   };
 
-  const [dataTablePaten, setDataTablePaten] = useState<DataPatenProps[]>([
-    {
-      judulPaten: "SISTERMONIKA",
-      noPermohonan: "J002014046345",
-      linkPDKI: "Buka Link",
-      tglBerakhirPerlindungan: parseDMY("10-12-2027"),
-      sisaWaktuPerlindungan: "Sisa Waktu Perlindungan Habis",
-      statusPembaruan: "Tidak Diperpanjang",
-      pemegangHAKI: "Atiqa Zaviera",
-    },
-    {
-      judulPaten: "SIMONHAKI",
-      noPermohonan: "J00201404634555",
-      linkPDKI: "Buka Link",
-      tglBerakhirPerlindungan: parseDMY("10-12-2022"),
-      sisaWaktuPerlindungan: "Sisa Waktu Perlindungan Habis",
-      statusPembaruan: "Tidak Diperpanjang",
-      pemegangHAKI: "Atiqa Zaviera",
-    },
-    {
-      judulPaten: "SIROP ULAM",
-      noPermohonan: "J00201404634567",
-      linkPDKI: "Buka Link",
-      tglBerakhirPerlindungan: parseDMY("10-12-2029"),
-      sisaWaktuPerlindungan: "Sisa Waktu Perlindungan Habis",
-      statusPembaruan: "Tidak Diperpanjang",
-      pemegangHAKI: "Atiqa Zaviera",
-    },
-  ]);
+  const formatToYMD = (tanggal: string) => {
+    if (!tanggal) return "-";
+    const date = new Date(tanggal);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${year}-${month}-${day}`;
+  };
 
-  // Hitung total halaman
-  const totalPages = Math.ceil(dataTablePaten.length / perPage);
-  // Disable prev/next
+  const sortedData = useMemo(() => {
+    if (!sortConfig.key) return dataTablePaten;
+
+    return [...dataTablePaten].sort((a, b) => {
+      const x = a[sortConfig.key!];
+      const y = b[sortConfig.key!];
+
+      // if (sortConfig.key === "status") {
+      //   const labelX =
+      //     typeof x === "object" && x !== null && "label" in x
+      //       ? (x as StatusPendaftaran).statusPendaftaran ?? ""
+      //       : typeof x === "string"
+      //       ? x
+      //       : "";
+      //   const labelY =
+      //     typeof y === "object" && y !== null && "label" in y
+      //       ? (y as StatusPendaftaran).statusPendaftaran ?? ""
+      //       : typeof y === "string"
+      //       ? y
+      //       : "";
+
+      //   return sortConfig.direction === "asc"
+      //     ? labelX.localeCompare(labelY)
+      //     : labelY.localeCompare(labelX);
+      // }
+      // handle tanggal
+      if (sortConfig.key === "tanggalBerakhirPerlindungan") {
+        const dateX = x ? new Date(x as string).getTime() : 0;
+        const dateY = y ? new Date(y as string).getTime() : 0;
+
+        return sortConfig.direction === "asc" ? dateX - dateY : dateY - dateX;
+      }
+      // handle string
+      if (typeof x === "string" && typeof y === "string") {
+        return sortConfig.direction === "asc"
+          ? x.localeCompare(y)
+          : y.localeCompare(x);
+      }
+      // handle number
+      if (typeof x === "number" && typeof y === "number") {
+        return sortConfig.direction === "asc" ? x - y : y - x;
+      }
+
+      return 0;
+    });
+  }, [sortConfig, dataTablePaten]);
+
   const isFirstPage = currentPage === 1;
-  const isLastPage = currentPage === totalPages || totalPages === 0;
-  // Data yang ditampilkan sesuai halaman
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return dataTablePaten.slice(start, start + perPage);
-  }, [currentPage, perPage, dataTablePaten]);
+  const isLastPage = currentPage === totalPage || totalPage === 0;
 
   return (
     <>
@@ -256,13 +605,21 @@ const PatenPage = () => {
             placeholder="Cari Paten"
             className="rounded-md w-[287px] px-2"
             value={search}
-            onChange={(e) => handleSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                fetchDataPaten();
+              }
+            }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
           />
           <Buttons
             variant="default"
             size="sm"
             className="ml-2"
-            onClick={() => setShowTambahData(true)}
+            onClick={() => setShowDialogPaten(true)}
           >
             <Plus />
             Tambah Data
@@ -287,46 +644,190 @@ const PatenPage = () => {
       <Table className="bg-white m-5 rounded-xl">
         <TableHeader>
           <TableRow>
-            <TableHead>Judul Paten</TableHead>
-            <TableHead>No Permohonan</TableHead>
+            <TableHead>
+              <Buttons
+                qa-btn="sorting-judul-paten"
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("judulPaten");
+                }}
+                className="flex items-center"
+              >
+                Judul Paten
+                <span>
+                  {sortConfig.key !== "judulPaten" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+            <TableHead>
+              <Buttons
+                qa-btn="sorting-nomor-permohonan"
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("nomorPermohonan");
+                }}
+                className="flex items-center"
+              >
+                No Permohonan
+                <span>
+                  {sortConfig.key !== "nomorPermohonan" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
             <TableHead>Link PDKI</TableHead>
-            <TableHead>Tgl Berakhir Perlindungan</TableHead>
-            <TableHead>Sisa Waktu Perlindungan</TableHead>
-            <TableHead>Status Pembaruan</TableHead>
-            <TableHead>Pemegang HAKI</TableHead>
+            <TableHead>
+              <Buttons
+                qa-btn="sorting-tanggal-berakhir-perlindungan"
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("tanggalBerakhirPerlindungan");
+                }}
+                className="flex items-center"
+              >
+                Tgl Berakhir Perlindungan
+                <span>
+                  {sortConfig.key !== "tanggalBerakhirPerlindungan" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+            <TableHead>
+              <Buttons
+                qa-btn="sorting-sisa-waktu-perlindungan"
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("sisaWaktuPerlindungan");
+                }}
+                className="flex items-center"
+              >
+                Sisa Waktu Perlindungan
+                <span>
+                  {sortConfig.key !== "sisaWaktuPerlindungan" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+
+            <TableHead>
+              <Buttons
+                qa-btn="sorting-status-pembaruan"
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("status");
+                }}
+                className="flex items-center"
+              >
+                Status Pembaruan
+                <span>
+                  {sortConfig.key !== "status" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+
+            <TableHead>
+              <Buttons
+                qa-btn="sorting-nama-pemegang-haki"
+                size=""
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort("namaPemegangHaki");
+                }}
+                className="flex items-center"
+              >
+                Pemegang HAKI
+                <span>
+                  {sortConfig.key !== "namaPemegangHaki" ? (
+                    <ArrowUpDown />
+                  ) : sortConfig.direction === "asc" ? (
+                    <ArrowUpWideNarrow />
+                  ) : (
+                    <ArrowDownWideNarrow />
+                  )}
+                </span>
+              </Buttons>
+            </TableHead>
+
             <TableHead>Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {paginatedData.length === 0 ? (
+          {sortedData.length === 0 ? (
             <TableRow>
               <TableCell colSpan={10} className="text-center py-8">
                 Tidak ada data
               </TableCell>
             </TableRow>
           ) : (
-            paginatedData.map((item) => {
+            sortedData.map((item, rowIndex) => {
               const {
                 judulPaten,
-                noPermohonan,
+                nomorPermohonan,
                 linkPDKI,
-                tglBerakhirPerlindungan,
+                tanggalBerakhirPerlindungan,
                 sisaWaktuPerlindungan,
-                statusPembaruan,
-                pemegangHAKI,
+                status,
+                namaPemegangHaki,
               } = item;
 
               return (
                 <TableRow
-                  key={noPermohonan}
+                  key={nomorPermohonan}
                   className={
-                    showKadaluarsa && isKadaluarsa(tglBerakhirPerlindungan)
+                    showKadaluarsa && isKadaluarsa(tanggalBerakhirPerlindungan)
                       ? "border-l-4 border-l-[#DC3545] bg-[#DC35451A]"
                       : ""
                   }
                 >
-                  <TableCell>{judulPaten}</TableCell>
-                  <TableCell>{noPermohonan}</TableCell>
+                  <TableCell
+                    className={`  ${
+                      showKadaluarsa &&
+                      isKadaluarsa(tanggalBerakhirPerlindungan)
+                        ? "border-l-4 border-l-[#DC3545]"
+                        : ""
+                    }`}
+                  >
+                    {judulPaten}
+                  </TableCell>
+                  <TableCell>{nomorPermohonan}</TableCell>
                   <TableCell>
                     <Link
                       href="/indikasi-geografis"
@@ -339,15 +840,15 @@ const PatenPage = () => {
                     </Link>
                   </TableCell>
                   <TableCell>
-                    {tglBerakhirPerlindungan
-                      ? formatToDMY(tglBerakhirPerlindungan)
+                    {tanggalBerakhirPerlindungan
+                      ? formatToDMY(tanggalBerakhirPerlindungan)
                       : "-"}
                   </TableCell>
                   <TableCell className="max-w-xs truncate">
                     {sisaWaktuPerlindungan}
                   </TableCell>
-                  <TableCell>{statusPembaruan}</TableCell>
-                  <TableCell>{pemegangHAKI}</TableCell>
+                  <TableCell>{status}</TableCell>
+                  <TableCell>{namaPemegangHaki}</TableCell>
                   <TableCell>
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
@@ -362,7 +863,7 @@ const PatenPage = () => {
                       <DropdownMenuContent className="w-40" align="end">
                         <DropdownMenuGroup className="space-y-1">
                           <DropdownMenuItem
-                            onSelect={() => setShowEditPaten(true)}
+                            onSelect={() => handleEditPaten(item)}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
                             <div className="text-sm hover:font-semibold">
@@ -370,7 +871,10 @@ const PatenPage = () => {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onSelect={() => setShowUpdatePembaruan(true)}
+                            onSelect={() => {
+                              setShowUpdatePembaruan(true);
+                              setSelectedRow(item);
+                            }}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
                             <div className="text-sm hover:font-semibold">
@@ -378,7 +882,10 @@ const PatenPage = () => {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onSelect={() => setShowHapusPaten(true)}
+                            onSelect={() => {
+                              setShowHapusPaten(true);
+                              setSelectedRow(item);
+                            }}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
                             <div
@@ -391,157 +898,6 @@ const PatenPage = () => {
                         </DropdownMenuGroup>
                       </DropdownMenuContent>
                     </DropdownMenu>
-
-                    {/* Dialog Edit Paten */}
-                    <Dialog
-                      open={showEditPaten}
-                      onOpenChange={setShowEditPaten}
-                    >
-                      <DialogContent className="sm:max-w-[788px] h-[436px] p-0">
-                        <DialogHeader>
-                          <DialogTitle className="bg-[#064263] text-white rounded-t-lg ">
-                            Edit Paten
-                          </DialogTitle>
-                          <div className="grid grid-cols-2 grid-rows-3 gap-4 p-4">
-                            <div className="col-span-2">
-                              <Labels
-                                htmlFor="judul-paten"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Judul Paten
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Inputs
-                                type="text"
-                                placeholder="Hak Paten atas Aplikasi"
-                                className="w-full border rounded px-2 py-1"
-                                onChange={(e) => setValue(e.target.value)}
-                              />
-                            </div>
-
-                            <div>
-                              <Labels
-                                htmlFor="no-permohonan"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Nomor Permohonan
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Inputs
-                                type="text"
-                                placeholder="J002014046345"
-                                className="w-full border rounded px-2 py-1"
-                                onChange={(e) => setValue(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Labels
-                                htmlFor="tanggal-berakhir-perlindungan"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Tanggal Berakhir Perlindungan
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Popover
-                                open={openDatePicker}
-                                onOpenChange={setOpenDatePicker}
-                              >
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    className="w-full justify-between font-normal"
-                                  >
-                                    {tglBerakhirPerlindungan
-                                      ? tglBerakhirPerlindungan.toLocaleDateString()
-                                      : "Masukkan tanggal berakhir perlindungan"}
-                                    <ChevronDownIcon className="ml-2 h-4 w-4 opacity-50" />
-                                  </Button>
-                                </PopoverTrigger>
-
-                                <PopoverContent
-                                  className="w-auto p-0"
-                                  align="start"
-                                >
-                                  <Calendar
-                                    mode="single"
-                                    selected={tglBerakhirPerlindungan}
-                                    captionLayout="dropdown"
-                                    onSelect={(date) => {
-                                      setTglBerakhirPerlindungan(date);
-                                      setOpenDatePicker(false);
-                                    }}
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                            </div>
-                            <div>
-                              <Labels
-                                htmlFor="link-pdki"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Link PDKI
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Inputs
-                                type="text"
-                                placeholder="https://simonhaki.pnm.co.id"
-                                className="w-full border rounded px-2 py-1"
-                                onChange={(e) => setValue(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Labels
-                                htmlFor="nama-pemegang-haki"
-                                className="block text-sm font-medium mb-1"
-                              >
-                                Nama Pemegang HAKI
-                                <span className="text-red-500 ml-1">*</span>
-                              </Labels>
-                              <Select
-                                onValueChange={(val) =>
-                                  setNamaPemegangHaki(val)
-                                }
-                                value={namaPemegangHaki}
-                              >
-                                <SelectTrigger className="w-full border rounded px-2 py-1">
-                                  <SelectValue placeholder="Pilih nama pemegang HAKI" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {pemegangHaki.map((nama) => (
-                                    <SelectItem
-                                      key={nama.value}
-                                      value={nama.value}
-                                    >
-                                      {nama.value}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        </DialogHeader>
-                        <DialogFooter className="px-4">
-                          <DialogClose asChild>
-                            <Buttons
-                              variant="defaultSecond"
-                              size="sm"
-                              onClick={() => handleCancelEditPaten()}
-                              className="w-20 p-2"
-                            >
-                              Batal
-                            </Buttons>
-                          </DialogClose>
-                          <Buttons
-                            variant="default"
-                            size="sm"
-                            onClick={() => handleSimpanEditPaten()}
-                            className="w-40 ml-2 p-2"
-                          >
-                            Simpan Perubahan
-                          </Buttons>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
 
                     {/* Dialog Update Pembaruan */}
                     <Dialog
@@ -558,22 +914,30 @@ const PatenPage = () => {
                               htmlFor="status"
                               className="block text-sm font-medium mb-1"
                             >
-                              Status<span className="text-red-500 ml-1">*</span>
+                              Status Pembaruan
+                              <span className="text-red-500 ml-1">*</span>
                             </Labels>
                             <Select
-                              onValueChange={(val) => setValue(val)}
-                              value={value}
+                              onValueChange={(val) =>
+                                setSelectedStatus(JSON.parse(val))
+                              }
+                              qa-select="update-status-pembaruan"
                             >
-                              <SelectTrigger className="w-full border rounded px-2 py-1">
+                              <SelectTrigger
+                                className="w-full border rounded px-2 py-1"
+                                qa-select-trigger="select-update-status-pembaruan"
+                              >
                                 <SelectValue placeholder="Pilih status" />
                               </SelectTrigger>
+
                               <SelectContent>
-                                {UpdatestatusPembaruan.map((update) => (
+                                {listStatus?.map((status: StatusPembaruan) => (
                                   <SelectItem
-                                    key={update.value}
-                                    value={update.value}
+                                    key={status.idStatus}
+                                    value={JSON.stringify(status)}
+                                    qa-select-option={`select-update-status-pembaruan-${status.namaStatus}`}
                                   >
-                                    {update.label}
+                                    {status.namaStatus}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -662,11 +1026,11 @@ const PatenPage = () => {
           )}
         </TableBody>
       </Table>
-      <Dialog open={showTambahData} onOpenChange={setShowTambahData}>
+      <Dialog open={showDialogPaten} onOpenChange={setShowDialogPaten}>
         <DialogContent className="sm:max-w-[788px] p-0">
           <DialogHeader>
             <DialogTitle className="bg-[#064263] text-white rounded-t-lg">
-              Tambah Data Paten
+              {selectedRow ? "Edit Paten" : "Tambah Data"}
             </DialogTitle>
             <div className="grid grid-cols-2 gap-4 p-4">
               <div className="col-span-2">
@@ -680,6 +1044,7 @@ const PatenPage = () => {
                   type="text"
                   placeholder="Masukan judul paten"
                   className="w-full border rounded px-2 py-1"
+                  value={judulPaten}
                   onChange={(e) => setJudulPaten(e.target.value)}
                 />
               </div>
@@ -694,6 +1059,7 @@ const PatenPage = () => {
                   type="text"
                   placeholder="Masukan nomor permohonan"
                   className="w-full border rounded px-2 py-1"
+                  value={nomorPermohonan}
                   onChange={(e) => setNomorPermohonan(e.target.value)}
                 />
               </div>
@@ -708,12 +1074,13 @@ const PatenPage = () => {
                 <Popover open={openDatePicker} onOpenChange={setOpenDatePicker}>
                   <PopoverTrigger asChild>
                     <Button
+                      qa-btn="select-tanggal-berakhir-perlindungan"
                       variant="outline"
                       className="w-full justify-between font-normal"
                     >
-                      {tglBerakhirPerlindungan
-                        ? tglBerakhirPerlindungan.toLocaleDateString()
-                        : "Masukkan tanggal berakhir perlindungan"}
+                      {tanggalBerakhirPerlindungan ||
+                        "Masukkan tanggal berakhir perlindungan"}
+
                       <ChevronDownIcon className="ml-2 h-4 w-4 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -721,10 +1088,24 @@ const PatenPage = () => {
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={tglBerakhirPerlindungan}
+                      selected={
+                        tanggalBerakhirPerlindungan
+                          ? new Date(tanggalBerakhirPerlindungan)
+                          : undefined
+                      }
                       captionLayout="dropdown"
                       onSelect={(date) => {
-                        setTglBerakhirPerlindungan(date);
+                        if (date) {
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(
+                            2,
+                            "0"
+                          );
+                          const day = String(date.getDate()).padStart(2, "0");
+                          setTanggalBerakhirPerlindungan(
+                            `${year}-${month}-${day}`
+                          );
+                        }
                         setOpenDatePicker(false);
                       }}
                     />
@@ -742,6 +1123,7 @@ const PatenPage = () => {
                   type="text"
                   placeholder="Masukan link PDKI"
                   className="w-full border rounded px-2 py-1"
+                  value={linkPdki}
                   onChange={(e) => setLinkPdki(e.target.value)}
                 />
               </div>
@@ -750,21 +1132,42 @@ const PatenPage = () => {
                   htmlFor="nama-pemegang-haki"
                   className="block text-sm font-medium mb-1"
                 >
-                  Nama Pemegang HAKI<span className="text-red-500 ml-1">*</span>
+                  Nama Pemegang Haki<span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Select
-                  onValueChange={(val) => setNamaPemegangHaki(val)}
-                  value={namaPemegangHaki}
+                  qa-select="nama-pemegang-haki"
+                  onValueChange={(val) => {
+                    const selected = JSON.parse(val);
+                    setSelectedPemegangHaki(selected);
+                  }}
+                  value={
+                    selectedPemegangHaki
+                      ? JSON.stringify(selectedPemegangHaki)
+                      : ""
+                  }
                 >
-                  <SelectTrigger className="w-full border rounded px-2 py-1">
+                  <SelectTrigger
+                    className="w-full border rounded px-2 py-1"
+                    qa-select-trigger="select-nama-pemegang-haki"
+                  >
                     <SelectValue placeholder="Pilih nama pemegang HAKI" />
                   </SelectTrigger>
                   <SelectContent>
-                    {pemegangHaki.map((nama) => (
-                      <SelectItem key={nama.value} value={nama.value}>
-                        {nama.value}
+                    {pemegangHakiList && pemegangHakiList.length > 0 ? (
+                      pemegangHakiList.map((item) => (
+                        <SelectItem
+                          key={item.id}
+                          value={JSON.stringify(item)}
+                          qa-select-option={`select-nama-pemegang-haki-${item.nama}`}
+                        >
+                          {item.nama}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="loading" disabled>
+                        Loading...
                       </SelectItem>
-                    ))}
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -775,7 +1178,7 @@ const PatenPage = () => {
               <Buttons
                 variant="defaultSecond"
                 size="sm"
-                onClick={() => handleCancelTambahData()}
+                onClick={() => handleCancelDialogPaten()}
                 className="w-20 p-2"
               >
                 Batal
@@ -785,7 +1188,7 @@ const PatenPage = () => {
               variant="default"
               size="sm"
               disabled={!isFormValid}
-              onClick={() => handleSimpanTambahData()}
+              onClick={() => handleSimpanDialogPaten()}
               className="w-40 ml-2 p-2"
             >
               Simpan Perubahan
@@ -800,6 +1203,7 @@ const PatenPage = () => {
           <span>Show</span>
 
           <select
+            qa-select="per-page"
             className="border rounded-md px-2 py-1 bg-white"
             value={perPage}
             onChange={(e: ChangeEvent<HTMLSelectElement>) => {
@@ -808,9 +1212,15 @@ const PatenPage = () => {
               setCurrentPage(1);
             }}
           >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
+            <option value={10} qa-select-option="10">
+              10
+            </option>
+            <option value={25} qa-select-option="25">
+              25
+            </option>
+            <option value={50} qa-select-option="50">
+              50
+            </option>
           </select>
 
           <span>entries</span>
@@ -820,29 +1230,75 @@ const PatenPage = () => {
         <div className="flex justify-center py-4">
           <Pagination>
             <PaginationContent>
-              {/* PREVIOUS */}
+              {/* DOUBLE ARROW LEFT - KE HALAMAN PERTAMA */}
               <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={() => !isFirstPage && setCurrentPage((p) => p - 1)}
+                <Button
+                  qa-btn="first-page"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={isFirstPage}
                   className={
                     isFirstPage ? "pointer-events-none opacity-40" : ""
                   }
-                />
+                >
+                  <span className="flex">
+                    <ChevronDownIcon className="h-4 w-4 rotate-90" />
+                    <ChevronDownIcon className="h-4 w-4 rotate-90 -ml-2" />
+                  </span>
+                </Button>
               </PaginationItem>
 
-              {/* NOMOR HALAMAN - HANYA TAMPIL HALAMAN SAAT INI */}
-              <PaginationItem className="rounded-lg text-white text-sm bg-[#006694] text-center px-3 py-2">
-                {currentPage}
-              </PaginationItem>
-
-              {/* NEXT */}
+              {/* SINGLE ARROW LEFT - PREVIOUS */}
               <PaginationItem>
-                <PaginationNext
-                  href="#"
+                <Button
+                  qa-btn="prev-table"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => !isFirstPage && setCurrentPage((p) => p - 1)}
+                  disabled={isFirstPage}
+                  className={
+                    isFirstPage ? "pointer-events-none opacity-40" : ""
+                  }
+                >
+                  <ChevronDownIcon className="h-4 w-4 rotate-90" />
+                </Button>
+              </PaginationItem>
+
+              {/* NOMOR HALAMAN SAAT INI */}
+              <PaginationItem className="rounded-lg text-white text-sm bg-[#006694] text-center px-4 py-2 mx-2">
+                {currentPage} / {totalPage}
+              </PaginationItem>
+
+              {/* SINGLE ARROW RIGHT - NEXT */}
+              <PaginationItem>
+                <Button
+                  qa-btn="next-table"
+                  variant="outline"
+                  size="icon"
                   onClick={() => !isLastPage && setCurrentPage((p) => p + 1)}
+                  disabled={isLastPage}
                   className={isLastPage ? "pointer-events-none opacity-40" : ""}
-                />
+                >
+                  <ChevronDownIcon className="h-4 w-4 -rotate-90" />
+                </Button>
+              </PaginationItem>
+
+              {/* DOUBLE ARROW RIGHT - KE HALAMAN TERAKHIR */}
+              <PaginationItem>
+                <Button
+                  qa-btn="last-page"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(totalPage)}
+                  disabled={isLastPage}
+                  className={isLastPage ? "pointer-events-none opacity-40" : ""}
+                >
+                  <span className="flex">
+                    <ChevronDownIcon className="h-4 w-4 -rotate-90" />
+                    <ChevronDownIcon className="h-4 w-4 -rotate-90 -ml-2" />
+                  </span>
+                </Button>
               </PaginationItem>
             </PaginationContent>
           </Pagination>

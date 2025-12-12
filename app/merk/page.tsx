@@ -405,7 +405,7 @@ const MerkPage = () => {
             const response = await Api.post("/merk", formData, {
               headers: { "Content-Type": "multipart/form-data" },
             });
-            const newData = response.data?.data;
+
             resetForm();
             await fetchDataMerk();
 
@@ -423,7 +423,7 @@ const MerkPage = () => {
                 headers: { "Content-Type": "multipart/form-data" },
               }
             );
-            const newData = response.data?.data;
+
             resetForm();
             await fetchDataMerk();
 
@@ -469,7 +469,6 @@ const MerkPage = () => {
   const handleEditMerk = (row: DataMerksProps) => {
     setShowDialogMerk(true);
     setSelectedRow(row);
-    console.log(row);
     setNomorPermohonan(row.nomorPermohonan);
     setNomorPendaftaran(row.nomorPendaftaran);
     setSelectedStatusPendaftaran(
