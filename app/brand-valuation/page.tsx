@@ -408,6 +408,7 @@ const BrandValuationPage = () => {
         <div className="font-semibold">Tabel Brand Valuation</div>
         <div>
           <Inputs
+            qa-input="input-search"
             type="search"
             value={search}
             placeholder="Cari Brand Evaluation"
@@ -423,6 +424,7 @@ const BrandValuationPage = () => {
             }}
           />
           <Buttons
+            qa-btn="tambah-data-brand-valuation"
             variant="default"
             size="sm"
             className="ml-2"
@@ -436,7 +438,6 @@ const BrandValuationPage = () => {
         <TableHeader>
           <TableRow>
             <TableHead>
-              {" "}
               <Buttons
                 qa-btn="sorting-judul-paten"
                 size=""
@@ -460,7 +461,6 @@ const BrandValuationPage = () => {
               </Buttons>
             </TableHead>
             <TableHead>
-              {" "}
               <Buttons
                 qa-btn="sorting-judul-paten"
                 size=""
@@ -522,13 +522,28 @@ const BrandValuationPage = () => {
 
               return (
                 <TableRow key={NamaBrand}>
-                  <TableCell>{NamaBrand}</TableCell>
-                  <TableCell>{BrandValuation}</TableCell>
-                  <TableCell>{NamaPemegangHaki}</TableCell>
-                  <TableCellAction>
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.0.table-brand-valuation`}
+                  >
+                    {NamaBrand}
+                  </TableCell>
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.1.table-brand-valuation`}
+                  >
+                    {BrandValuation}
+                  </TableCell>
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.2.table-brand-valuation`}
+                  >
+                    {NamaPemegangHaki}
+                  </TableCell>
+                  <TableCellAction
+                    qa-table={`cell.${rowIndex}.3.table-brand-valuation`}
+                  >
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button
+                          qa-btn="select-action"
                           variant="outline"
                           aria-label="Open menu"
                           size="icon-sm"
@@ -539,6 +554,7 @@ const BrandValuationPage = () => {
                       <DropdownMenuContent className="w-45" align="end">
                         <DropdownMenuGroup className="space-y-1">
                           <DropdownMenuItem
+                            qa-select-option="edit-brand-valuation"
                             onSelect={() => handleEditBrandValuation(item)}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
@@ -547,6 +563,7 @@ const BrandValuationPage = () => {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            qa-select-option="hapus-brand-valuation"
                             onSelect={() => setShowHapusBrandValuation(true)}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
@@ -598,6 +615,7 @@ const BrandValuationPage = () => {
                         <DialogFooterHapus className="p-4">
                           <DialogClose asChild>
                             <Buttons
+                              qa-btn="batal-hapus-brand-valuation"
                               variant="defaultSecond"
                               size="sm"
                               onClick={() => handleCancelHapusBrandValuation()}
@@ -607,6 +625,7 @@ const BrandValuationPage = () => {
                             </Buttons>
                           </DialogClose>
                           <Buttons
+                            qa-btn="simpan-hapus-brand-valuation"
                             variant="default"
                             size="sm"
                             onClick={() => handleSimpanHapusBrandValuation()}
@@ -645,6 +664,7 @@ const BrandValuationPage = () => {
                   Nama Brand<span className="text-red-500 ml-2">*</span>
                 </Labels>
                 <Inputs
+                  qa-input="input-nama-brand"
                   type="text"
                   placeholder="Masukan nama brand"
                   className="w-full border rounded px-2 py-1"
@@ -660,6 +680,7 @@ const BrandValuationPage = () => {
                   Brand Valuation<span className="text-red-500 ml-2">*</span>
                 </Labels>
                 <Inputs
+                  qa-input="input-brand-valuation"
                   type="text"
                   placeholder="Masukan brand valuation"
                   className="w-full border rounded px-2 py-1"
@@ -717,6 +738,7 @@ const BrandValuationPage = () => {
           <DialogFooter className="p-4">
             <DialogClose asChild>
               <Buttons
+                qa-btn="batal-tambah-data-brand-valuation-edit-brand-valuation"
                 variant="defaultSecond"
                 size="sm"
                 onClick={() => handleCancelDialogBrandValuation()}
@@ -726,6 +748,7 @@ const BrandValuationPage = () => {
               </Buttons>
             </DialogClose>
             <Buttons
+              qa-btn="simpan-tambah-data-brand-valuation-edit-brand-valuation"
               variant="default"
               size="sm"
               disabled={!isFormValid}

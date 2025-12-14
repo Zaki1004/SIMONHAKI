@@ -610,6 +610,7 @@ const HakCiptaPage = () => {
         <div className="font-semibold">Tabel Hak Cipta</div>
         <div>
           <Inputs
+            qa-input="input-search"
             type="search"
             value={search}
             placeholder="Cari Hak Cipta"
@@ -625,6 +626,7 @@ const HakCiptaPage = () => {
             }}
           />
           <Buttons
+            qa-btn="tambah-data-hak-cipta"
             variant="default"
             size="sm"
             className="ml-2"
@@ -639,6 +641,7 @@ const HakCiptaPage = () => {
       {/* Checkbox */}
       <div className="flex items-center gap-2 mx-4 mt-4">
         <Checkbox
+          qa-btn="checkbox-tampilkan-kadaluarsa"
           id="terms"
           onCheckedChange={(showKadaluarsa) =>
             setShowKadaluarsa(!!showKadaluarsa)
@@ -650,7 +653,7 @@ const HakCiptaPage = () => {
         </Labels>
       </div>
 
-      <Table className="bg-white m-5 rounded-xl">
+      <Table qa-table="hak-cipta" className="bg-white m-5 rounded-xl">
         <TableHeader>
           <TableRow>
             <TableHead>
@@ -701,7 +704,6 @@ const HakCiptaPage = () => {
             </TableHead>
             <TableHead>Link PDKI</TableHead>
             <TableHead>
-              {" "}
               <Buttons
                 qa-btn="sorting-tanggal-berakhir-perlindungan"
                 size=""
@@ -827,6 +829,7 @@ const HakCiptaPage = () => {
                   }
                 >
                   <TableCell
+                    qa-table={`cell.${rowIndex}.0.table-hak-cipta`}
                     className={`  ${
                       showKadaluarsa &&
                       isKadaluarsa(tanggalBerakhirPerlindungan)
@@ -836,10 +839,12 @@ const HakCiptaPage = () => {
                   >
                     {judulHakCipta}
                   </TableCell>
-                  <TableCell>{namaPencipta}</TableCell>
-                  <TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.1.table-hak-cipta`}>
+                    {namaPencipta}
+                  </TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.2.table-hak-cipta`}>
                     <Link
-                      href="/indikasi-geografis"
+                      href="/hak-cipta"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:underline"
@@ -848,20 +853,28 @@ const HakCiptaPage = () => {
                       {linkPdki}
                     </Link>
                   </TableCell>
-                  <TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.3.table-hak-cipta`}>
                     {tanggalBerakhirPerlindungan
                       ? formatToDMY(tanggalBerakhirPerlindungan)
                       : "-"}
                   </TableCell>
-                  <TableCell className="max-w-xs truncate">
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.4.table-hak-cipta`}
+                    className="max-w-xs truncate"
+                  >
                     {sisaWaktuPerlindungan}
                   </TableCell>
-                  <TableCell>{status}</TableCell>
-                  <TableCell>{namaPemegangHaki}</TableCell>
-                  <TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.5.table-hak-cipta`}>
+                    {status}
+                  </TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.6.table-hak-cipta`}>
+                    {namaPemegangHaki}
+                  </TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.7.table-hak-cipta`}>
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button
+                          qa-btn="select-action"
                           variant="outline"
                           aria-label="Open menu"
                           size="icon-sm"
@@ -872,6 +885,7 @@ const HakCiptaPage = () => {
                       <DropdownMenuContent className="w-40" align="end">
                         <DropdownMenuGroup className="space-y-1">
                           <DropdownMenuItem
+                            qa-select-option="edit-hak-cipta"
                             onSelect={() => handleEditHakCipta(item)}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
@@ -880,6 +894,7 @@ const HakCiptaPage = () => {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            qa-select-option="update-pembaruan"
                             onSelect={() => {
                               setShowUpdatePembaruan(true);
                               setSelectedRow(item);
@@ -891,6 +906,7 @@ const HakCiptaPage = () => {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            qa-select-option="hapus-hak-cipta"
                             onSelect={() => {
                               setShowHapusHakCipta(true);
                               setSelectedRow(item);
@@ -956,6 +972,7 @@ const HakCiptaPage = () => {
                         <DialogFooter className="p-4">
                           <DialogClose asChild>
                             <Buttons
+                              qa-btn="batal-update-pembaruan"
                               variant="defaultSecond"
                               size="sm"
                               onClick={() => handleCancelUpdateHakCipta()}
@@ -965,6 +982,7 @@ const HakCiptaPage = () => {
                             </Buttons>
                           </DialogClose>
                           <Buttons
+                            qa-btn="simpan-update-pembaruan"
                             variant="default"
                             size="sm"
                             onClick={() => handleSimpanUpdateHakCipta()}
@@ -1008,6 +1026,7 @@ const HakCiptaPage = () => {
                         <DialogFooterHapus className="p-4">
                           <DialogClose asChild>
                             <Buttons
+                              qa-btn="batal-hapus-hak-cipta"
                               variant="defaultSecond"
                               size="sm"
                               onClick={() => handleCancelHapusHakCipta()}
@@ -1017,6 +1036,7 @@ const HakCiptaPage = () => {
                             </Buttons>
                           </DialogClose>
                           <Buttons
+                            qa-btn="hapus-hak-cipta"
                             variant="default"
                             size="sm"
                             onClick={() => handleSimpanHapusHakCipta()}
@@ -1050,6 +1070,7 @@ const HakCiptaPage = () => {
                   Judul Hak Cipta <span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Inputs
+                  qa-input="input-judul-hak-cipta"
                   type="text"
                   placeholder="Masukan judul hak cipta"
                   className="w-full border rounded px-2 py-1"
@@ -1065,6 +1086,7 @@ const HakCiptaPage = () => {
                   Nama Pencipta <span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Inputs
+                  qa-input="input-nama-pencipta"
                   type="text"
                   placeholder="Masukan nama pencipta"
                   className="w-full border rounded px-2 py-1"
@@ -1129,6 +1151,7 @@ const HakCiptaPage = () => {
                   Link PDKI <span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Inputs
+                  qa-input="input-link-pdki"
                   type="text"
                   placeholder="Masukan link PDKI"
                   className="w-full border rounded px-2 py-1"
@@ -1186,6 +1209,7 @@ const HakCiptaPage = () => {
           <DialogFooter className="p-4">
             <DialogClose asChild>
               <Buttons
+                qa-btn="batal-tambah-data-hak-cipta-edit-hak-cipta"
                 variant="defaultSecond"
                 size="sm"
                 onClick={() => handleCancelDialogHakCipta()}
@@ -1195,6 +1219,7 @@ const HakCiptaPage = () => {
               </Buttons>
             </DialogClose>
             <Buttons
+              qa-btn="simpan-tambah-data-hak-cipta-edit-hak-cipta"
               variant="default"
               size="sm"
               disabled={!isFormValid}
