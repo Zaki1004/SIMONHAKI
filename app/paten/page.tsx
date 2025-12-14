@@ -601,6 +601,7 @@ const PatenPage = () => {
         <div className="font-semibold">Tabel Paten</div>
         <div>
           <Inputs
+            qa-input="input-search"
             type="search"
             placeholder="Cari Paten"
             className="rounded-md w-[287px] px-2"
@@ -616,6 +617,7 @@ const PatenPage = () => {
             }}
           />
           <Buttons
+            qa-btn="tambah-data-paten"
             variant="default"
             size="sm"
             className="ml-2"
@@ -630,6 +632,7 @@ const PatenPage = () => {
       {/* Checkbox */}
       <div className="flex items-center gap-2 mx-4 mt-4">
         <Checkbox
+          qa-btn="checkbox-tampilkan-kadaluarsa"
           id="terms"
           onCheckedChange={(showKadaluarsa) =>
             setShowKadaluarsa(!!showKadaluarsa)
@@ -641,7 +644,7 @@ const PatenPage = () => {
         </Labels>
       </div>
 
-      <Table className="bg-white m-5 rounded-xl">
+      <Table qa-table="paten" className="bg-white m-5 rounded-xl">
         <TableHeader>
           <TableRow>
             <TableHead>
@@ -818,6 +821,7 @@ const PatenPage = () => {
                   }
                 >
                   <TableCell
+                    qa-table={`cell.${rowIndex}.0.table-paten`}
                     className={`  ${
                       showKadaluarsa &&
                       isKadaluarsa(tanggalBerakhirPerlindungan)
@@ -827,8 +831,10 @@ const PatenPage = () => {
                   >
                     {judulPaten}
                   </TableCell>
-                  <TableCell>{nomorPermohonan}</TableCell>
-                  <TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.1.table-paten`}>
+                    {nomorPermohonan}
+                  </TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.2.table-paten`}>
                     <Link
                       href="/indikasi-geografis"
                       target="_blank"
@@ -839,20 +845,28 @@ const PatenPage = () => {
                       {linkPDKI}
                     </Link>
                   </TableCell>
-                  <TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.3.table-paten`}>
                     {tanggalBerakhirPerlindungan
                       ? formatToDMY(tanggalBerakhirPerlindungan)
                       : "-"}
                   </TableCell>
-                  <TableCell className="max-w-xs truncate">
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.4.table-paten`}
+                    className="max-w-xs truncate"
+                  >
                     {sisaWaktuPerlindungan}
                   </TableCell>
-                  <TableCell>{status}</TableCell>
-                  <TableCell>{namaPemegangHaki}</TableCell>
-                  <TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.5.table-paten`}>
+                    {status}
+                  </TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.6.table-paten`}>
+                    {namaPemegangHaki}
+                  </TableCell>
+                  <TableCell qa-table={`cell.${rowIndex}.7.table-paten`}>
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button
+                          qa-select-trigger="select-action"
                           variant="outline"
                           aria-label="Open menu"
                           size="icon-sm"
@@ -863,6 +877,7 @@ const PatenPage = () => {
                       <DropdownMenuContent className="w-40" align="end">
                         <DropdownMenuGroup className="space-y-1">
                           <DropdownMenuItem
+                            qa-select-option="edit-paten"
                             onSelect={() => handleEditPaten(item)}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
@@ -871,6 +886,7 @@ const PatenPage = () => {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            qa-select-option="update-pembaruan-paten"
                             onSelect={() => {
                               setShowUpdatePembaruan(true);
                               setSelectedRow(item);
@@ -882,6 +898,7 @@ const PatenPage = () => {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            qa-select-option="hapus-paten"
                             onSelect={() => {
                               setShowHapusPaten(true);
                               setSelectedRow(item);
@@ -947,6 +964,7 @@ const PatenPage = () => {
                         <DialogFooter className="p-4">
                           <DialogClose asChild>
                             <Buttons
+                              qa-btn="batal-update-paten"
                               variant="defaultSecond"
                               size="sm"
                               onClick={() => handleCancelUpdatePaten()}
@@ -956,6 +974,7 @@ const PatenPage = () => {
                             </Buttons>
                           </DialogClose>
                           <Buttons
+                            qa-btn="simpan-update-paten"
                             variant="default"
                             size="sm"
                             onClick={() => handleSimpanUpdatePaten()}
@@ -999,6 +1018,7 @@ const PatenPage = () => {
                         <DialogFooterHapus className="p-4">
                           <DialogClose asChild>
                             <Buttons
+                              qa-btn="batal-hapus-paten"
                               variant="defaultSecond"
                               size="sm"
                               onClick={() => handleCancelHapusPaten()}
@@ -1008,6 +1028,7 @@ const PatenPage = () => {
                             </Buttons>
                           </DialogClose>
                           <Buttons
+                            qa-btn="simpan-hapus-paten"
                             variant="default"
                             size="sm"
                             onClick={() => handleSimpanHapusPaten()}
@@ -1041,6 +1062,7 @@ const PatenPage = () => {
                   Judul Paten<span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Inputs
+                  qa-inpu="input-judul-paten"
                   type="text"
                   placeholder="Masukan judul paten"
                   className="w-full border rounded px-2 py-1"
@@ -1056,6 +1078,7 @@ const PatenPage = () => {
                   Nomor Permohonan<span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Inputs
+                  qa-input="input-nomor-permohonan"
                   type="text"
                   placeholder="Masukan nomor permohonan"
                   className="w-full border rounded px-2 py-1"
@@ -1120,6 +1143,7 @@ const PatenPage = () => {
                   Link PDKI<span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Inputs
+                  qa-input="input-link-pdki"
                   type="text"
                   placeholder="Masukan link PDKI"
                   className="w-full border rounded px-2 py-1"
@@ -1176,6 +1200,7 @@ const PatenPage = () => {
           <DialogFooter className="p-4">
             <DialogClose asChild>
               <Buttons
+                qa-btn="batal-tambah-data-paten-edit-paten"
                 variant="defaultSecond"
                 size="sm"
                 onClick={() => handleCancelDialogPaten()}
@@ -1185,6 +1210,7 @@ const PatenPage = () => {
               </Buttons>
             </DialogClose>
             <Buttons
+              qa-btn="simpan-tambah-data-paten-edit-paten"
               variant="default"
               size="sm"
               disabled={!isFormValid}

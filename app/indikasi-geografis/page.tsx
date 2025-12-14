@@ -613,6 +613,7 @@ const IndikasiGeografisPage = () => {
         <div className="font-semibold">Tabel Indikasi Geografis</div>
         <div>
           <Inputs
+            qa-input="input-search"
             type="search"
             value={search}
             placeholder="Cari Indikasi Geografis"
@@ -628,6 +629,7 @@ const IndikasiGeografisPage = () => {
             }}
           />
           <Buttons
+            qa-btn="tambah-data-indikasi-geografis"
             variant="default"
             size="sm"
             className="ml-2"
@@ -641,6 +643,7 @@ const IndikasiGeografisPage = () => {
       {/* Checkbox */}
       <div className="flex items-center gap-2 mx-4 mt-4">
         <Checkbox
+          qa-btn="checkbox-tampilkan-kadaluarsa"
           id="terms"
           onCheckedChange={(showKadaluarsa) =>
             setShowKadaluarsa(!!showKadaluarsa)
@@ -652,7 +655,7 @@ const IndikasiGeografisPage = () => {
         </Labels>
       </div>
 
-      <Table className="bg-white m-5 rounded-xl">
+      <Table qa-table="indikasi-geografis" className="bg-white m-5 rounded-xl">
         <TableHeader>
           <TableRow>
             <TableHead>
@@ -827,9 +830,25 @@ const IndikasiGeografisPage = () => {
                       : ""
                   }
                 >
-                  <TableCell>{Geografis}</TableCell>
-                  <TableCell>{NomorPermohonan}</TableCell>
-                  <TableCell>
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.0.table-indikasi-geografis`}
+                    className={
+                      showKadaluarsa &&
+                      isKadaluarsa(TanggalBerakhirPerlindungan)
+                        ? "border-l-4 border-l-[#DC3545] bg-[#DC35451A]"
+                        : ""
+                    }
+                  >
+                    {Geografis}
+                  </TableCell>
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.1.table-indikasi-geografis`}
+                  >
+                    {NomorPermohonan}
+                  </TableCell>
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.2.table-indikasi-geografis`}
+                  >
                     <Link
                       href="/indikasi-geografis"
                       target="_blank"
@@ -840,20 +859,36 @@ const IndikasiGeografisPage = () => {
                       {LinkPDKI}
                     </Link>
                   </TableCell>
-                  <TableCell>
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.3.table-indikasi-geografis`}
+                  >
                     {TanggalBerakhirPerlindungan
                       ? formatToDMY(TanggalBerakhirPerlindungan)
                       : "-"}
                   </TableCell>
-                  <TableCell className="max-w-xs truncate">
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.4.table-indikasi-geografis`}
+                    className="max-w-xs truncate"
+                  >
                     {sisaWaktuPerlindungan}
                   </TableCell>
-                  <TableCell>{status}</TableCell>
-                  <TableCell>{NamaPemegangHaki}</TableCell>
-                  <TableCell>
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.5.table-indikasi-geografis`}
+                  >
+                    {status}
+                  </TableCell>
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.6.table-indikasi-geografis`}
+                  >
+                    {NamaPemegangHaki}
+                  </TableCell>
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.7.table-indikasi-geografis`}
+                  >
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button
+                          qa-btn="select-action"
                           variant="outline"
                           aria-label="Open menu"
                           size="icon-sm"
@@ -864,6 +899,7 @@ const IndikasiGeografisPage = () => {
                       <DropdownMenuContent className="w-45" align="end">
                         <DropdownMenuGroup className="space-y-1">
                           <DropdownMenuItem
+                            qa-select-option="edit-indikasi-geografis"
                             onSelect={() => handleEditIndikasiGeografis(item)}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
@@ -872,6 +908,7 @@ const IndikasiGeografisPage = () => {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            qa-select-option="update-pembaruan"
                             onSelect={() => {
                               setShowUpdatePembaruan(true);
                               setSelectedRow(item);
@@ -883,6 +920,7 @@ const IndikasiGeografisPage = () => {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            qa-select-option="hapus-indikasi-geografis"
                             onSelect={() => {
                               setShowHapusIndikasiGeografis(true);
                               setSelectedRow(item);
@@ -950,6 +988,7 @@ const IndikasiGeografisPage = () => {
                         <DialogFooter className="p-4">
                           <DialogClose asChild>
                             <Buttons
+                              qa-btn="batal-update-pembaruan"
                               variant="defaultSecond"
                               size="sm"
                               onClick={() =>
@@ -961,6 +1000,7 @@ const IndikasiGeografisPage = () => {
                             </Buttons>
                           </DialogClose>
                           <Buttons
+                            qa-btn="simpan-update-pembaruan"
                             variant="default"
                             size="sm"
                             onClick={() =>
@@ -1008,6 +1048,7 @@ const IndikasiGeografisPage = () => {
                         <DialogFooterHapus className="p-4">
                           <DialogClose asChild>
                             <Buttons
+                              qa-btn="batal-hapus-indikasi-geografis"
                               variant="defaultSecond"
                               size="sm"
                               onClick={() =>
@@ -1019,6 +1060,7 @@ const IndikasiGeografisPage = () => {
                             </Buttons>
                           </DialogClose>
                           <Buttons
+                            qa-btn="simpan-hapus-indikasi-geografis"
                             variant="default"
                             size="sm"
                             onClick={() => handleSimpanHapusIndikasiGeografis()}
@@ -1057,6 +1099,7 @@ const IndikasiGeografisPage = () => {
                   Geografis<span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Inputs
+                  qa-input="input-geografis"
                   type="text"
                   placeholder="Masukan geografis"
                   className="w-full border rounded px-2 py-1"
@@ -1072,6 +1115,7 @@ const IndikasiGeografisPage = () => {
                   Nomor Permohonan<span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Inputs
+                  qa-input="input-nomor-permohonan"
                   type="text"
                   placeholder="Masukan nomor permohonan"
                   className="w-full border rounded px-2 py-1"
@@ -1136,6 +1180,7 @@ const IndikasiGeografisPage = () => {
                   Link PDKI<span className="text-red-500 ml-2">*</span>
                 </Labels>
                 <Inputs
+                  qa-input="input-link-pdki"
                   type="text"
                   placeholder="Masukan link PDKI"
                   className="w-full border rounded px-2 py-1"
@@ -1192,6 +1237,7 @@ const IndikasiGeografisPage = () => {
           <DialogFooter className="p-4">
             <DialogClose asChild>
               <Buttons
+                qa-btn="batal-tambah-data-indikasi-geografis-edit-indikasi-geografis"
                 variant="defaultSecond"
                 size="sm"
                 onClick={() => handleCancelDialogIndikasiGeografis()}
@@ -1201,6 +1247,7 @@ const IndikasiGeografisPage = () => {
               </Buttons>
             </DialogClose>
             <Buttons
+              qa-btn="simpan-tambah-data-indikasi-geografis-edit-indikasi-geografis"
               variant="default"
               size="sm"
               disabled={!isFormValid}

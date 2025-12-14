@@ -757,7 +757,7 @@ const MerkPage = () => {
       {/* Checkbox */}
       <div className="flex items-center gap-2 mx-4 mt-4">
         <Checkbox
-          qa-button="checkbox-tampilkan-kadaluarsa"
+          qa-btn="checkbox-tampilkan-kadaluarsa"
           id="terms"
           onCheckedChange={(showKadaluarsa) =>
             setShowKadaluarsa(!!showKadaluarsa)
@@ -1126,7 +1126,7 @@ const MerkPage = () => {
                               onValueChange={(val) =>
                                 setSelectedStatus(JSON.parse(val))
                               }
-                              qa-select="update-status-pembaruan"
+                              qa-select="update-select-status-pembaruan"
                             >
                               <SelectTrigger
                                 className="w-full border rounded px-2 py-1"
@@ -1593,7 +1593,7 @@ const MerkPage = () => {
           <DialogFooter className="p-4">
             <DialogClose asChild>
               <Buttons
-                qa-btn="batal-tambah-data-merk"
+                qa-btn="batal-tambah-data-merk-edit-merk"
                 variant="defaultSecond"
                 size="sm"
                 onClick={() => handleCancelDialogMerk()}
@@ -1603,7 +1603,7 @@ const MerkPage = () => {
               </Buttons>
             </DialogClose>
             <Buttons
-              qa-btn="simpan-tambah-data-merk"
+              qa-btn="simpan-tambah-data-merk-edit-merk"
               variant="default"
               size="sm"
               disabled={!isFormValid}

@@ -616,6 +616,7 @@ const DesainIndustriPage = () => {
         <div className="font-semibold">Tabel Desain Industri</div>
         <div>
           <Inputs
+            qa-input="input-search"
             type="search"
             value={search}
             placeholder="Cari Desain Industri"
@@ -631,6 +632,7 @@ const DesainIndustriPage = () => {
             }}
           />
           <Buttons
+            qa-btn="tambah-data-desain-industri"
             variant="default"
             size="sm"
             className="ml-2"
@@ -644,6 +646,7 @@ const DesainIndustriPage = () => {
       {/* Checkbox */}
       <div className="flex items-center gap-2 mx-4 mt-4">
         <Checkbox
+          qa-btn="checkbox-tampilkan-kadaluarsa"
           id="terms"
           onCheckedChange={(showKadaluarsa) =>
             setShowKadaluarsa(!!showKadaluarsa)
@@ -655,7 +658,7 @@ const DesainIndustriPage = () => {
         </Labels>
       </div>
 
-      <Table className="bg-white m-5 rounded-xl">
+      <Table qa-table="desain-industri" className="bg-white m-5 rounded-xl">
         <TableHeader>
           <TableRow>
             <TableHead>
@@ -831,6 +834,7 @@ const DesainIndustriPage = () => {
                   }
                 >
                   <TableCell
+                    qa-table={`cell.${rowIndex}.0.table-desain-industri`}
                     className={`  ${
                       showKadaluarsa &&
                       isKadaluarsa(tanggalBerakhirPerlindungan)
@@ -840,10 +844,16 @@ const DesainIndustriPage = () => {
                   >
                     {judulDesainIndustri}
                   </TableCell>
-                  <TableCell>{nomorPermohonan}</TableCell>
-                  <TableCell>
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.1.table-desain-industri`}
+                  >
+                    {nomorPermohonan}
+                  </TableCell>
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.2.table-desain-industri`}
+                  >
                     <Link
-                      href="/indikasi-geografis"
+                      href="/desain-industri"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:underline"
@@ -852,20 +862,36 @@ const DesainIndustriPage = () => {
                       {linkPDKI}
                     </Link>
                   </TableCell>
-                  <TableCell>
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.3.table-desain-industri`}
+                  >
                     {tanggalBerakhirPerlindungan
                       ? formatToDMY(tanggalBerakhirPerlindungan)
                       : "-"}
                   </TableCell>
-                  <TableCell className="max-w-xs truncate">
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.4.table-desain-industri`}
+                    className="max-w-xs truncate"
+                  >
                     {sisaWaktuPerlindungan}
                   </TableCell>
-                  <TableCell>{status}</TableCell>
-                  <TableCell>{namaPemegangHaki}</TableCell>
-                  <TableCell>
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.5.table-desain-industri`}
+                  >
+                    {status}
+                  </TableCell>
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.6.table-desain-industri`}
+                  >
+                    {namaPemegangHaki}
+                  </TableCell>
+                  <TableCell
+                    qa-table={`cell.${rowIndex}.7.table-desain-industri`}
+                  >
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button
+                          qa-btn="select-action"
                           variant="outline"
                           aria-label="Open menu"
                           size="icon-sm"
@@ -876,6 +902,7 @@ const DesainIndustriPage = () => {
                       <DropdownMenuContent className="w-40" align="end">
                         <DropdownMenuGroup className="space-y-1">
                           <DropdownMenuItem
+                            qa-select-option="edit-desain-industri"
                             onSelect={() => handleEditDesainIndustri(item)}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
@@ -884,6 +911,7 @@ const DesainIndustriPage = () => {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            qa-select-option="update-pembaruan"
                             onSelect={() => {
                               setShowUpdatePembaruan(true);
                               setSelectedRow(item);
@@ -895,6 +923,7 @@ const DesainIndustriPage = () => {
                             </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            qa-select-option="hapus-desain-industri"
                             onSelect={() => {
                               setShowHapusDesainIndustri(true);
                               setSelectedRow(item);
@@ -960,6 +989,7 @@ const DesainIndustriPage = () => {
                         <DialogFooter className="p-4">
                           <DialogClose asChild>
                             <Buttons
+                              qa-btn="batal-update-pembaruan"
                               variant="defaultSecond"
                               size="sm"
                               onClick={() => handleCancelUpdateDesainIndustri()}
@@ -969,6 +999,7 @@ const DesainIndustriPage = () => {
                             </Buttons>
                           </DialogClose>
                           <Buttons
+                            qa-btn="simpan-update-pembaruan"
                             variant="default"
                             size="sm"
                             onClick={() => handleSimpanUpdateDesainIndustri()}
@@ -1014,6 +1045,7 @@ const DesainIndustriPage = () => {
                         <DialogFooterHapus className="p-4">
                           <DialogClose asChild>
                             <Buttons
+                              qa-btn="batal-hapus-desain-industri"
                               variant="defaultSecond"
                               size="sm"
                               onClick={() => handleCancelHapusDesainIndustri()}
@@ -1023,6 +1055,7 @@ const DesainIndustriPage = () => {
                             </Buttons>
                           </DialogClose>
                           <Buttons
+                            qa-btn="simpan-hapus-desain-industri"
                             variant="default"
                             size="sm"
                             onClick={() => handleSimpanHapusDesainIndustri()}
@@ -1062,6 +1095,7 @@ const DesainIndustriPage = () => {
                   <span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Inputs
+                  qa-input="input-judul-desain-industri"
                   type="text"
                   placeholder="Masukan judul desain industri"
                   className="w-full border rounded px-2 py-1"
@@ -1077,6 +1111,7 @@ const DesainIndustriPage = () => {
                   Nomor Permohonan<span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Inputs
+                  qa-input="input-nomor-permohonan"
                   type="text"
                   placeholder="Masukan nomor permohonan"
                   className="w-full border rounded px-2 py-1"
@@ -1141,6 +1176,7 @@ const DesainIndustriPage = () => {
                   Link PDKi<span className="text-red-500 ml-1">*</span>
                 </Labels>
                 <Inputs
+                  qa-input="input-link-pdki"
                   type="text"
                   placeholder="Masukan link PDKI"
                   className="w-full border rounded px-2 py-1"
@@ -1197,6 +1233,7 @@ const DesainIndustriPage = () => {
           <DialogFooter className="p-4">
             <DialogClose asChild>
               <Buttons
+                qa-btn="batal-tambah-data-desain-industri-edit-desain-industri"
                 variant="defaultSecond"
                 size="sm"
                 onClick={() => handleCancelDialogDesainIndustri()}
@@ -1206,6 +1243,7 @@ const DesainIndustriPage = () => {
               </Buttons>
             </DialogClose>
             <Buttons
+              qa-btn="simpan-tambah-data-desain-industri-edit-desain-industri"
               variant="default"
               size="sm"
               disabled={!isFormValid}
