@@ -613,7 +613,7 @@ const DesainIndustriPage = () => {
   return (
     <>
       <div className="bg-white p-4 flex justify-between">
-        <div className="font-semibold">Tabel Desain Industri</div>
+        <div className="font-semibold text-xl">Tabel Desain Industri</div>
         <div>
           <Inputs
             qa-input="input-search"

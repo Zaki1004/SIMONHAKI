@@ -22,8 +22,6 @@ import {
   Pagination,
   PaginationContent,
   PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
 } from "@/components/ui/pagination";
 import {
   Select,
@@ -405,7 +403,7 @@ const BrandValuationPage = () => {
   return (
     <>
       <div className="bg-white p-4 flex justify-between">
-        <div className="font-semibold">Tabel Brand Valuation</div>
+        <div className="font-semibold text-xl">Tabel Brand Valuation</div>
         <div>
           <Inputs
             qa-input="input-search"

@@ -6,49 +6,104 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import Api from "@/services/api";
+import { useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
+interface dashboardHakiProps {
+  merk: number;
+  paten: number;
+  hakCipta: number;
+  geografis: number;
+  desainIndustri: number;
+}
+
 const HakAtasKekayaanIntelektual = () => {
-  const chartData = [
-    { title: "Merk", value: 12 },
-    { title: "Paten", value: 8 },
-    { title: "Hak Cipta", value: 4 },
-    { title: "Geografis", value: 13 },
-    { title: "Desain Industri", value: 7 },
-  ];
+  const [dashboardHaki, setDashboardHaki] = useState<dashboardHakiProps | null>(
+    null
+  );
+
+  const fetchData = async () => {
+    try {
+      const response = await Api.get("dashboard/total-haki");
+      const result = response.data?.data;
+
+      setDashboardHaki(result);
+      console.log("dashboard total haki", result);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const chartData = dashboardHaki
+    ? [
+        { title: "Merk", value: dashboardHaki.merk },
+        { title: "Paten", value: dashboardHaki.paten },
+        { title: "Hak Cipta", value: dashboardHaki.hakCipta },
+        { title: "Geografis", value: dashboardHaki.geografis },
+        { title: "Desain Industri", value: dashboardHaki.desainIndustri },
+      ]
+    : [];
+
+  const maxValue = dashboardHaki
+    ? Math.max(
+        dashboardHaki.merk,
+        dashboardHaki.paten,
+        dashboardHaki.hakCipta,
+        dashboardHaki.geografis,
+        dashboardHaki.desainIndustri
+      )
+    : 20;
+
+  const yAxisMax = Math.ceil(maxValue / 10) * 10 + 10;
+
   const chartConfig = {
     desktop: {
-      label: "Desktop",
-      color: "var(--chart-1)",
+      label: "Total",
+      color: "#75BF44",
     },
   } satisfies ChartConfig;
   return (
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Grafik Hak Atas Kekayaan Intelektual</CardTitle>
+          <CardTitle className="font-semibold text-xl">
+            Grafik Hak Atas Kekayaan Intelektual
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <ChartContainer config={chartConfig} className="h-[372px] max-w-full">
+        <CardContent className="px-6">
+          <ChartContainer config={chartConfig} className="h-[372px] w-full">
             <BarChart
               accessibilityLayer
               data={chartData}
-              barCategoryGap="42%"
-              barGap={40}
+              barCategoryGap="20%"
+              barGap={20}
+              margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
             >
+              <defs>
+                <linearGradient id="greenGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#98e067ff" />
+                  <stop offset="100%" stopColor="#6cb03fff" />
+                </linearGradient>
+              </defs>
               <CartesianGrid vertical={false} />
               <XAxis
                 dataKey="title"
                 tickLine={true}
                 tickMargin={10}
                 axisLine={false}
+                padding={{ left: 0, right: 0 }}
               />
               <YAxis
                 tickLine={false}
                 tickMargin={10}
                 axisLine={false}
                 allowDecimals={false}
-                domain={[0, 20]}
+                domain={[0, yAxisMax]}
               />
               <ChartTooltip
                 cursor={false}
@@ -56,18 +111,14 @@ const HakAtasKekayaanIntelektual = () => {
               />
               <Bar
                 dataKey="value"
-                fill="var(--color-desktop)"
-                barSize={25}
-                radius={[6, 6, 0, 0]}
+                fill="url(#greenGradient)"
+                barSize={50}
+                radius={[14, 14, 0, 0]}
               />
             </BarChart>
           </ChartContainer>
         </CardContent>
       </Card>
-      {/* <button className="relative overflow-hidden bg-blue-600 text-white px-6 py-2 rounded-md group">
-  <span className="relative z-10">Hover Saya</span>
-  <span className="absolute inset-0 bg-blue-800 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 ease-in-out"></span>
-</button> */}
     </>
   );
 };

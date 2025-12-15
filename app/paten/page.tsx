@@ -598,7 +598,7 @@ const PatenPage = () => {
   return (
     <>
       <div className="bg-white p-4 flex justify-between">
-        <div className="font-semibold">Tabel Paten</div>
+        <div className="font-semibold text-xl">Tabel Paten</div>
         <div>
           <Inputs
             qa-input="input-search"
