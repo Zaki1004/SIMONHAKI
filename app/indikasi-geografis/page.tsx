@@ -610,7 +610,7 @@ const IndikasiGeografisPage = () => {
   return (
     <>
       <div className="bg-white p-4 flex justify-between">
-        <div className="font-semibold">Tabel Indikasi Geografis</div>
+        <div className="font-semibold text-xl">Tabel Indikasi Geografis</div>
         <div>
           <Inputs
             qa-input="input-search"

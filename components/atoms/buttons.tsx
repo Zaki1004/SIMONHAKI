@@ -11,7 +11,8 @@ interface ButtonsProps {
     | "outline"
     | "secondary"
     | "ghost"
-    | "link";
+    | "link"
+    | "manualBook";
   size: string | "sm" | "lg";
   children: React.ReactNode;
   disabled?: boolean;

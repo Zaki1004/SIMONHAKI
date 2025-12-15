@@ -1,137 +1,169 @@
 "use client";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { TrendingUp } from "lucide-react";
-import React from "react";
+import Api from "@/services/api";
+import React, { useEffect, useState } from "react";
 import { Label, Pie, PieChart } from "recharts";
 
-const chartData = [
-  { browser: "chrome", visitors: 275, fill: "var(--color-chrome)" },
-  { browser: "safari", visitors: 200, fill: "var(--color-safari)" },
-  { browser: "firefox", visitors: 287, fill: "var(--color-firefox)" },
-  { browser: "edge", visitors: 173, fill: "var(--color-edge)" },
-  { browser: "other", visitors: 190, fill: "var(--color-other)" },
-  { browser: "edge", visitors: 190, fill: "var(--color-edge)" },
-  { browser: "firefox", visitors: 190, fill: "var(--color-firefox)" },
-];
-const chartConfig = {
-  visitors: {
-    label: "Visitors",
-  },
-  chrome: {
-    label: "Chrome",
-    color: "var(--chart-1)",
-  },
-  safari: {
-    label: "Safari",
-    color: "var(--chart-2)",
-  },
-  firefox: {
-    label: "Firefox",
-    color: "var(--chart-3)",
-  },
-  edge: {
-    label: "Edge",
-    color: "var(--chart-4)",
-  },
-  other: {
-    label: "Other",
-    color: "var(--chart-5)",
-  },
-  mozilaFirefox: {
-    label: "Firefox",
-    color: "var(--chart-3)",
-  },
-  microsoftEdge: {
-    label: "Edge",
-    color: "var(--chart-4)",
-  },
-} satisfies ChartConfig;
+interface DashboardJangkaWaktuProps {
+  key: string;
+  label: string;
+  value: number;
+  fill: string;
+}
 
 const DashboardJangkaWaktu = () => {
-  const totalVisitors = React.useMemo(() => {
-    return chartData.reduce((acc, curr) => acc + curr.visitors, 0);
+  const [chartData, setChartData] = useState<DashboardJangkaWaktuProps[]>([]);
+
+  const fetchData = async () => {
+    try {
+      const res = await Api.get("dashboard/jangka-waktu");
+      const data = res.data?.data;
+
+      const result: DashboardJangkaWaktuProps[] = [
+        {
+          key: "range5yTo10y",
+          label: "5 - 10 Tahun",
+          value: data.range5yTo10y,
+          fill: "var(--chart-3)",
+        },
+        {
+          key: "range1yTo5y",
+          label: "1 - 5 Tahun",
+          value: data.range1yTo5y,
+          fill: "var(--chart-2)",
+        },
+        {
+          key: "range6mTo1y",
+          label: "6 Bulan - 1 Tahun",
+          value: data.range6mTo1y,
+          fill: "var(--chart-1)",
+        },
+      ];
+
+      setChartData(result);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
   }, []);
+
+  const chartConfig = {
+    value: {
+      label: "Total",
+    },
+    range5yTo10y: {
+      label: "5 - 10 Tahun",
+      color: "var(--chart-3)",
+    },
+    range1yTo5y: {
+      label: "1 - 5 Tahun",
+      color: "var(--chart-2)",
+    },
+    range6mTo1y: {
+      label: "6 Bulan < 1 Tahun",
+      color: "var(--chart-1)",
+    },
+  } satisfies ChartConfig;
+
+  const totalVisitors = React.useMemo(() => {
+    return chartData.reduce(
+      (acc: number, curr: DashboardJangkaWaktuProps) => acc + curr.value,
+      0
+    );
+  }, [chartData]);
+
   return (
     <>
-      {" "}
       <Card className="flex flex-col">
         <CardHeader className="items-center pb-0">
-          <CardTitle>Pie Chart - Donut with Text</CardTitle>
-          <CardDescription>January - June 2024</CardDescription>
+          <CardTitle className="font-bold text-xl">Jangka Waktu</CardTitle>
         </CardHeader>
-        <CardContent className="flex-1 pb-0">
-          <ChartContainer
-            config={chartConfig}
-            className="mx-auto aspect-square max-h-[250px]"
-          >
-            <PieChart>
-              <ChartTooltip
-                cursor={false}
-                content={<ChartTooltipContent hideLabel />}
-              />
-              <Pie
-                data={chartData}
-                dataKey="visitors"
-                nameKey="browser"
-                innerRadius={60}
-                strokeWidth={10}
-                cornerRadius={10}
-                paddingAngle={3}
-              >
-                <Label
-                  content={({ viewBox }) => {
-                    if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                      return (
-                        <text
-                          x={viewBox.cx}
-                          y={viewBox.cy}
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                        >
-                          <tspan
-                            x={viewBox.cx}
-                            y={viewBox.cy}
-                            className="fill-foreground text-3xl font-bold"
-                          >
-                            {totalVisitors.toLocaleString()}
-                          </tspan>
-                          <tspan
-                            x={viewBox.cx}
-                            y={(viewBox.cy || 0) + 24}
-                            className="fill-muted-foreground"
-                          >
-                            Visitors
-                          </tspan>
-                        </text>
-                      );
-                    }
-                  }}
+        <div className="flex items-center gap-6 px-6 justify-start">
+          <CardContent className="flex-1 pb-0">
+            <ChartContainer
+              config={chartConfig}
+              className="mx-auto aspect-square max-h-[250px]"
+            >
+              <PieChart>
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent />}
                 />
-              </Pie>
-            </PieChart>
-          </ChartContainer>
-        </CardContent>
-        <CardFooter className="flex-col gap-2 text-sm">
-          <div className="flex items-center gap-2 leading-none font-medium">
-            Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
+                <Pie
+                  data={chartData}
+                  dataKey="value"
+                  nameKey="label"
+                  innerRadius="65%"
+                  outerRadius="105%"
+                  strokeWidth={10}
+                  cornerRadius={10}
+                  paddingAngle={3}
+                >
+                  <Label
+                    content={({ viewBox }) => {
+                      if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                        const cx = viewBox.cx;
+                        const cy = viewBox.cy;
+
+                        return (
+                          <text
+                            x={cx}
+                            y={cy}
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                          >
+                            <tspan
+                              x={cx}
+                              y={(cy || 0) + 24}
+                              className="fill-muted-foreground"
+                            >
+                              Total
+                            </tspan>
+                            <tspan
+                              x={cx}
+                              y={cy}
+                              className="fill-foreground text-3xl font-bold"
+                            >
+                              {totalVisitors.toLocaleString()}
+                            </tspan>
+                          </text>
+                        );
+                      }
+                    }}
+                  />
+                </Pie>
+              </PieChart>
+            </ChartContainer>
+          </CardContent>
+          <div className="flex flex-col gap-4 min-w-[250px] space-x-4">
+            {chartData.map((item) => (
+              <div
+                key={item.key}
+                className="flex items-center justify-between text-sm mr-4"
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className="h-3 w-3 rounded-full shadow-xl"
+                    style={{ backgroundColor: item.fill }}
+                  />
+                  <span className="text-muted-foreground text-lg">
+                    {item.label}
+                  </span>
+                </div>
+                <span className="font-medium text-lg">{item.value}</span>
+              </div>
+            ))}
           </div>
-          <div className="text-muted-foreground leading-none">
-            Showing total visitors for the last 6 months
-          </div>
-        </CardFooter>
+        </div>
       </Card>
     </>
   );

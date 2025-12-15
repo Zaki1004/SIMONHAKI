@@ -723,7 +723,7 @@ const MerkPage = () => {
   return (
     <>
       <div className="bg-white p-4 flex justify-between">
-        <div className="font-semibold">Tabel Merk</div>
+        <div className="font-semibold text-xl">Tabel Merk</div>
         <div className=" flex items-center">
           <Inputs
             qa-input="input-search"

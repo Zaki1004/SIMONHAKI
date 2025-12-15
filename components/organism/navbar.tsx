@@ -1,4 +1,6 @@
-import { BellDot, XIcon } from "lucide-react";
+"use client";
+
+import { BellDot, Menu, XIcon } from "lucide-react";
 import Image from "next/image";
 import {
   Dialog,
@@ -9,11 +11,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
+import { usePathname } from "next/navigation";
+import pageMetadata from "@/lib/page-metadata";
 
 const NavigationBar = () => {
+  const pathname = usePathname();
+
+  const meta = pageMetadata[pathname] ?? {
+    title: "Dashboard",
+    breadcrumb: "Menu / Dashboard",
+  };
+
   return (
     <>
-      <div className=" relative bg-[#00425A] flex items-center gap-10 w-full h-[115px] overflow-hidden">
+      <div className=" relative bg-[#00425A] flex items-center gap-4 w-full h-[115px] overflow-hidden">
         {/* <div className="absolute inset-0 bg-white bg-no-repeat flex justify-end bg-right bg-contain opacity-10 pointer-events-none z-0" /> */}
 
         <Image
@@ -22,14 +33,23 @@ const NavigationBar = () => {
           width={245}
           height={53}
           priority
-          className="rounded-lg p-5 relative z-10"
+          className="rounded-lg p-5 "
         ></Image>
 
         <div className="flex justify-between w-full p-5 relative z-10 items-center">
-          <div>
-            <h1 className="text-white text-2xl">DASHBOARD</h1>
-            <h2 className="text-white text-xs">Menu / Dashboard</h2>
+          <div className="gap-0">
+            <div className="flex justify-center text-white mt-2">
+              <span className="mt-3">
+                <Menu />
+              </span>
+              <h1 className="text-white text-4xl items-center ml-4">
+                {meta.title}
+              </h1>
+            </div>
+            <h2 className="text-white text-md ml-11">{meta.breadcrumb}</h2>
           </div>
+
+          {/* Right Navbar */}
           <div className="flex items-center gap-4">
             <div>
               <div className="font-semibold text-white text-md">
@@ -44,7 +64,7 @@ const NavigationBar = () => {
                 <DialogTrigger asChild>
                   <BellDot />
                 </DialogTrigger>
-                <DialogContent className="fixed top-[25%] left-[84%] md:left-[77%] w-[565px] h-auto p-2">
+                <DialogContent className="fixed top-[21%] left-[84%] w-[565px] h-auto p-2">
                   <DialogHeader>
                     <div className="flex justify-between m-4">
                       <DialogTitle className="p-0 h-auto">
@@ -63,7 +83,7 @@ const NavigationBar = () => {
                         alt="Logo Isi Notifikasi"
                         width={150}
                         height={150}
-                      ></Image>
+                      />
                     </div>
                     <div className="text-md font-bold"></div>
                     <p>

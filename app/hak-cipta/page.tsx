@@ -607,7 +607,7 @@ const HakCiptaPage = () => {
   return (
     <>
       <div className="bg-white p-4 flex justify-between">
-        <div className="font-semibold">Tabel Hak Cipta</div>
+        <div className="font-semibold text-xl">Tabel Hak Cipta</div>
         <div>
           <Inputs
             qa-input="input-search"
