@@ -1072,7 +1072,7 @@ const MerkPage = () => {
                           >
                             <div className="text-sm hover:font-semibold flex items-center justify-start">
                               <Image
-                                src="/icon/edit-svgrepo-com 2.svg"
+                                src="/icon/update-svgrepo-com 1.svg"
                                 alt="Logo Upload"
                                 width={16}
                                 height={16}
