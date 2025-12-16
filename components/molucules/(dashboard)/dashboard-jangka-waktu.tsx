@@ -20,40 +20,69 @@ interface DashboardJangkaWaktuProps {
 const DashboardJangkaWaktu = () => {
   const [chartData, setChartData] = useState<DashboardJangkaWaktuProps[]>([]);
 
-  const fetchData = async () => {
-    try {
-      const res = await Api.get("dashboard/jangka-waktu");
-      const data = res.data?.data;
+  // const fetchData = async () => {
+  //   try {
+  //     const res = await Api.get("dashboard/jangka-waktu");
+  //     const data = res.data?.data;
 
-      const result: DashboardJangkaWaktuProps[] = [
-        {
-          key: "range5yTo10y",
-          label: "5 - 10 Tahun",
-          value: data.range5yTo10y,
-          fill: "var(--chart-3)",
-        },
-        {
-          key: "range1yTo5y",
-          label: "1 - 5 Tahun",
-          value: data.range1yTo5y,
-          fill: "var(--chart-2)",
-        },
-        {
-          key: "range6mTo1y",
-          label: "6 Bulan - 1 Tahun",
-          value: data.range6mTo1y,
-          fill: "var(--chart-1)",
-        },
-      ];
+  //     const result: DashboardJangkaWaktuProps[] = [
+  //       {
+  //         key: "range5yTo10y",
+  //         label: "5 - 10 Tahun",
+  //         value: data.range5yTo10y,
+  //         fill: "var(--chart-3)",
+  //       },
+  //       {
+  //         key: "range1yTo5y",
+  //         label: "1 - 5 Tahun",
+  //         value: data.range1yTo5y,
+  //         fill: "var(--chart-2)",
+  //       },
+  //       {
+  //         key: "range6mTo1y",
+  //         label: "6 Bulan - 1 Tahun",
+  //         value: data.range6mTo1y,
+  //         fill: "var(--chart-1)",
+  //       },
+  //     ];
 
-      setChartData(result);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  //     setChartData(result);
+  //   } catch (err) {
+  //     console.error(err);
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   fetchData();
+  // }, []);
+
+  /** =====================
+   *  DUMMY DATA
+   *  ===================== */
+  const dummyChartData: DashboardJangkaWaktuProps[] = [
+    {
+      key: "range5yTo10y",
+      label: "5 - 10 Tahun",
+      value: 86,
+      fill: "var(--chart-3)",
+    },
+    {
+      key: "range1yTo5y",
+      label: "1 - 5 Tahun",
+      value: 142,
+      fill: "var(--chart-2)",
+    },
+    {
+      key: "range6mTo1y",
+      label: "6 Bulan - 1 Tahun",
+      value: 57,
+      fill: "var(--chart-1)",
+    },
+  ];
 
   useEffect(() => {
-    fetchData();
+    // simulasi fetch data
+    setChartData(dummyChartData);
   }, []);
 
   const chartConfig = {
@@ -124,6 +153,7 @@ const DashboardJangkaWaktu = () => {
                             <tspan
                               x={cx}
                               y={(cy || 0) + 24}
+                              dy="-3.2em"
                               className="fill-muted-foreground"
                             >
                               Total
@@ -131,6 +161,7 @@ const DashboardJangkaWaktu = () => {
                             <tspan
                               x={cx}
                               y={cy}
+                              dy="0.4em"
                               className="fill-foreground text-3xl font-bold"
                             >
                               {totalVisitors.toLocaleString()}
@@ -144,21 +175,34 @@ const DashboardJangkaWaktu = () => {
               </PieChart>
             </ChartContainer>
           </CardContent>
-          <div className="flex flex-col gap-4 min-w-[250px] space-x-4">
+          <div className="flex flex-col gap-4 min-w-[250px]">
             {chartData.map((item) => (
               <div
                 key={item.key}
                 className="flex items-center justify-between text-sm mr-4"
               >
                 <div className="flex items-center gap-2">
-                  <span
-                    className="h-3 w-3 rounded-full shadow-xl"
-                    style={{ backgroundColor: item.fill }}
-                  />
+                  <div className="relative h-5 w-5 shrink-0">
+                    <span
+                      className="absolute inset-0 rounded-full"
+                      style={{
+                        backgroundColor: item.fill,
+                        opacity: 0.25,
+                      }}
+                    />
+                    <span
+                      className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                      style={{
+                        backgroundColor: item.fill,
+                      }}
+                    />
+                  </div>
+
                   <span className="text-muted-foreground text-lg">
                     {item.label}
                   </span>
                 </div>
+
                 <span className="font-medium text-lg">{item.value}</span>
               </div>
             ))}

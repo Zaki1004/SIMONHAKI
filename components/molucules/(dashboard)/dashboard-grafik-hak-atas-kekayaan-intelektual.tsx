@@ -6,7 +6,6 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import Api from "@/services/api";
 import { useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
@@ -23,21 +22,59 @@ const HakAtasKekayaanIntelektual = () => {
     null
   );
 
-  const fetchData = async () => {
-    try {
-      const response = await Api.get("dashboard/total-haki");
-      const result = response.data?.data;
+  // const fetchData = async () => {
+  //   try {
+  //     const response = await Api.get("dashboard/total-haki");
+  //     const result = response.data?.data;
 
-      setDashboardHaki(result);
-      console.log("dashboard total haki", result);
-    } catch (error) {
-      console.log(error);
-    }
+  //     setDashboardHaki(result);
+  //     console.log("dashboard total haki", result);
+  //   } catch (error) {
+  //     console.log(error);
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   fetchData();
+  // }, []);
+
+  /** =====================
+   *  DUMMY DATA
+   *  ===================== */
+  const dummyDashboardHaki: dashboardHakiProps = {
+    merk: 120,
+    paten: 45,
+    hakCipta: 210,
+    geografis: 18,
+    desainIndustri: 67,
   };
 
   useEffect(() => {
-    fetchData();
+    // simulasi fetch data
+    setDashboardHaki(dummyDashboardHaki);
   }, []);
+
+  // const chartData = dashboardHaki
+  //   ? [
+  //       { title: "Merk", value: dashboardHaki.merk },
+  //       { title: "Paten", value: dashboardHaki.paten },
+  //       { title: "Hak Cipta", value: dashboardHaki.hakCipta },
+  //       { title: "Geografis", value: dashboardHaki.geografis },
+  //       { title: "Desain Industri", value: dashboardHaki.desainIndustri },
+  //     ]
+  //   : [];
+
+  // const maxValue = dashboardHaki
+  //   ? Math.max(
+  //       dashboardHaki.merk,
+  //       dashboardHaki.paten,
+  //       dashboardHaki.hakCipta,
+  //       dashboardHaki.geografis,
+  //       dashboardHaki.desainIndustri
+  //     )
+  //   : 20;
+
+  // const yAxisMax = Math.ceil(maxValue / 10) * 10 + 10;
 
   const chartData = dashboardHaki
     ? [
@@ -78,11 +115,10 @@ const HakAtasKekayaanIntelektual = () => {
         <CardContent className="px-6">
           <ChartContainer config={chartConfig} className="h-[372px] w-full">
             <BarChart
-              accessibilityLayer
               data={chartData}
-              barCategoryGap="20%"
-              barGap={20}
-              margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+              barCategoryGap={0}
+              barGap={0}
+              margin={{ top: 8, right: 0, left: 0, bottom: 0 }}
             >
               <defs>
                 <linearGradient id="greenGradient" x1="0" y1="0" x2="0" y2="1">
@@ -91,18 +127,12 @@ const HakAtasKekayaanIntelektual = () => {
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} />
-              <XAxis
-                dataKey="title"
-                tickLine={true}
-                tickMargin={10}
-                axisLine={false}
-                padding={{ left: 0, right: 0 }}
-              />
+              <XAxis dataKey="title" tickLine={true} axisLine={false} />
               <YAxis
                 tickLine={false}
-                tickMargin={10}
                 axisLine={false}
                 allowDecimals={false}
+                tickMargin={0}
                 domain={[0, yAxisMax]}
               />
               <ChartTooltip

@@ -41,50 +41,68 @@ const DashboardPemegangMerk = () => {
   }, [chartData]);
 
   const COLORS = [
-    "#2563EB",
-    "#16A34A",
-    "#F59E0B",
-    "#DC2626",
-    "#7C3AED",
-    "#0D9488",
-    "#DB2777",
-    "#4B5563",
-    "#84CC16",
-    "#0284C7",
-    "#9333EA",
-    "#EA580C",
-    "#22C55E",
-    "#E11D48",
-    "#64748B",
-    "#F97316",
-    "#06B6D4",
-    "#A855F7",
-    "#10B981",
-    "#EF4444",
+    "#0A84FF",
+    "#00C2A8",
+    "#FFC83D",
+    "#FF8A3D",
+    "#2C3E70",
+    "#6B78A6",
+    "#EAC6A5",
+    "#F4B400",
+    "#4CAF50",
+    "#9C27B0",
+    "#E91E63",
+    "#607D8B",
   ];
 
-  const fetchData = async () => {
-    try {
-      const res = await Api.get<{ data: PemegangMerkApiResponse[] }>(
-        "dashboard/pemegang-merk"
-      );
-      const data = res.data?.data ?? [];
+  // const fetchData = async () => {
+  //   try {
+  //     const res = await Api.get<{ data: PemegangMerkApiResponse[] }>(
+  //       "dashboard/pemegang-merk"
+  //     );
+  //     const data = res.data?.data ?? [];
 
-      const result: DashboardPemegangHakiProps[] = data.map((item, index) => ({
+  //     const result: DashboardPemegangHakiProps[] = data.map((item, index) => ({
+  //       key: item.namaPemegangHaki,
+  //       label: item.namaPemegangHaki,
+  //       value: item.total,
+  //       fill: COLORS[index % COLORS.length],
+  //     }));
+
+  //     setChartData(result);
+  //   } catch (err) {
+  //     console.error(err);
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   fetchData();
+  // }, []);
+
+  /** =====================
+   *  DUMMY DATA
+   *  ===================== */
+  const dummyPemegangMerk = [
+    { namaPemegangHaki: "PT Maju Jaya", total: 48 },
+    { namaPemegangHaki: "CV Sukses Mandiri", total: 36 },
+    { namaPemegangHaki: "PT Teknologi Nusantara", total: 29 },
+    { namaPemegangHaki: "UMKM Sejahtera", total: 21 },
+    { namaPemegangHaki: "PT Inovasi Global", total: 17 },
+    { namaPemegangHaki: "PT Kreatif Abadi", total: 14 },
+  ];
+
+  useEffect(() => {
+    // simulasi hasil API dashboard/pemegang-merk
+    const result: DashboardPemegangHakiProps[] = dummyPemegangMerk.map(
+      (item, index) => ({
         key: item.namaPemegangHaki,
         label: item.namaPemegangHaki,
         value: item.total,
         fill: COLORS[index % COLORS.length],
-      }));
+      })
+    );
 
-      setChartData(result);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
+    setChartData(result);
   }, []);
 
   const totalVisitors = React.useMemo(() => {
@@ -111,8 +129,8 @@ const DashboardPemegangMerk = () => {
                   data={chartData}
                   dataKey="value"
                   nameKey="label"
-                  innerRadius="65%"
-                  outerRadius="105%"
+                  innerRadius="60%"
+                  outerRadius="95%"
                   strokeWidth={10}
                   cornerRadius={10}
                   paddingAngle={3}
@@ -129,17 +147,19 @@ const DashboardPemegangMerk = () => {
                           >
                             <tspan
                               x={viewBox.cx}
-                              y={viewBox.cy}
-                              className="fill-foreground text-3xl font-bold"
-                            >
-                              {totalVisitors.toLocaleString()}
-                            </tspan>
-                            <tspan
-                              x={viewBox.cx}
                               y={(viewBox.cy || 0) + 24}
+                              dy="-3.2em"
                               className="fill-muted-foreground"
                             >
                               Total
+                            </tspan>
+                            <tspan
+                              x={viewBox.cx}
+                              y={viewBox.cy}
+                              dy="0.4em"
+                              className="fill-foreground text-3xl font-bold"
+                            >
+                              {totalVisitors.toLocaleString()}
                             </tspan>
                           </text>
                         );
@@ -157,14 +177,27 @@ const DashboardPemegangMerk = () => {
                 className="flex items-center justify-between text-sm"
               >
                 <div className="flex items-center gap-2 text-lg">
-                  <span
-                    className="h-3 w-3 rounded-full shrink-0"
-                    style={{ backgroundColor: item.fill }}
-                  />
+                  <div className="relative h-5 w-5 shrink-0">
+                    <span
+                      className="absolute inset-0 rounded-full"
+                      style={{
+                        backgroundColor: item.fill,
+                        opacity: 0.25,
+                      }}
+                    />
+                    <span
+                      className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                      style={{
+                        backgroundColor: item.fill,
+                      }}
+                    />
+                  </div>
+
                   <span className="text-muted-foreground truncate max-w-[100px]">
                     {item.label}
                   </span>
                 </div>
+
                 <span className="font-medium text-lg">{item.value}</span>
               </div>
             ))}

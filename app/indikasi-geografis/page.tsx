@@ -903,7 +903,14 @@ const IndikasiGeografisPage = () => {
                             onSelect={() => handleEditIndikasiGeografis(item)}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
-                            <div className="text-sm hover:font-semibold">
+                            <div className="text-sm hover:font-semibold flex items-center justify-start">
+                              <Image
+                                src="/icon/edit-svgrepo-com 2.svg"
+                                alt="Logo Upload"
+                                width={16}
+                                height={16}
+                                className="mr-2 text-[888888]"
+                              />
                               Edit Indikasi Geografis
                             </div>
                           </DropdownMenuItem>
@@ -915,7 +922,14 @@ const IndikasiGeografisPage = () => {
                             }}
                             className="cursor-pointer hover:bg-[#F5F7FA] hover:text-[#00425A]"
                           >
-                            <div className="text-sm hover:font-semibold">
+                            <div className="text-sm hover:font-semibold flex items-center justify-start">
+                              <Image
+                                src="/icon/update-svgrepo-com 1.svg"
+                                alt="Logo Upload"
+                                width={16}
+                                height={16}
+                                className="mr-2 hover:text-[#00425A]"
+                              />
                               Update Pembaruan
                             </div>
                           </DropdownMenuItem>
@@ -933,7 +947,16 @@ const IndikasiGeografisPage = () => {
                                 setShowHapusIndikasiGeografis(true)
                               }
                             >
-                              Hapus Indikasi Geografis
+                              <div className="text-sm hover:font-semibold flex items-center justify-start">
+                                <Image
+                                  src="/icon/Trash.svg"
+                                  alt="Logo Upload"
+                                  width={16}
+                                  height={16}
+                                  className="mr-2 hover:text-[#00425A]"
+                                />
+                                Hapus Indikasi Geografis
+                              </div>
                             </div>
                           </DropdownMenuItem>
                         </DropdownMenuGroup>
